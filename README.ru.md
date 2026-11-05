@@ -259,12 +259,10 @@ STRICT_ALLOWLIST='{"servers":["docs","web-search"],"tools":[],"read_only":true}'
 - **stdio в Docker** — npx-серверам нужен Node в образе (есть в Dockerfile).
 - **`entrypoint.sh: no such file or directory` (Windows)** — CRLF в shell-скриптах. Обновите репозиторий (`.gitattributes` + Dockerfile) и пересоберите: `docker compose build --no-cache && docker compose up -d`.
 - **Ошибки embedding / reindex** — при `EMBEDDING_URL` + `EMBEDDING_MODEL` используется remote API, иначе local CPU (fastembed). Режим смотрите в `get_router_status`.
-- **Desktop-only MCP (browsermcp и т.п.)** — в образе есть `procps`/`findutils`. Нужны Chrome-расширение + WebSocket на порту 9009 (`9009:9009` в compose). См. [docs/BROWSER_MCP_DOCKER.md](docs/BROWSER_MCP_DOCKER.md). Для headless-in-container — `chrome-devtools-mcp`.
 - **Cursor `fetch failed` / ECONNREFUSED** — контейнер запущен (`docker ps`), порт совпадает с `HOST_PORT` в `.env` (по умолчанию `8000` → `http://localhost:8000/mcp`), `/status` показывает `index_status: ready`.
 
 ## Доп. документы
 
 Операционные заметки (часть файлов в `docs/` историческая и может отставать от кода):
 
-- [docs/BROWSER_MCP_DOCKER.md](docs/BROWSER_MCP_DOCKER.md) — browser MCP в Docker
 - [docs/PUBLISH_CHECKLIST.md](docs/PUBLISH_CHECKLIST.md) — перед GitHub `visibility=public`

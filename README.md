@@ -259,12 +259,10 @@ Calls outside the allow-list return typed `failure_kind=strict_denied` (same rem
 - **stdio servers in Docker** — npx-based servers need Node in the image (included in Dockerfile).
 - **`entrypoint.sh: no such file or directory` (Windows)** — CRLF line endings in shell scripts. Pull latest (`.gitattributes` + Dockerfile fix) and rebuild: `docker compose build --no-cache && docker compose up -d`.
 - **Embedding / reindex errors** — if `EMBEDDING_URL` + `EMBEDDING_MODEL` set, uses remote API; otherwise local CPU (fastembed). Check `get_router_status` for mode and health.
-- **Desktop-only MCP servers (browsermcp, etc.)** — `lsof`/`xargs` fixed in Docker image (`procps`, `findutils`). Real requirement: Chrome extension + WebSocket on port 9009 (`9009:9009` in compose). See [docs/BROWSER_MCP_DOCKER.md](docs/BROWSER_MCP_DOCKER.md). For headless-in-container use `chrome-devtools-mcp`.
 - **Cursor `fetch failed` / ECONNREFUSED** — check container is up (`docker ps`), published port matches `HOST_PORT` in `.env` (default `8000` → `http://localhost:8000/mcp`), and `/status` shows `index_status: ready`.
 
 ## More docs
 
 Operational notes (some files under `docs/` are historical and may lag the code):
 
-- [docs/BROWSER_MCP_DOCKER.md](docs/BROWSER_MCP_DOCKER.md) — browser MCP servers in Docker
 - [docs/PUBLISH_CHECKLIST.md](docs/PUBLISH_CHECKLIST.md) — before GitHub `visibility=public`
