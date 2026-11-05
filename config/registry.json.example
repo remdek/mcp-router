@@ -70,13 +70,6 @@
       },
       "description": "Crawl URLs via Crawl4AI (set CRAWL4AI_BASE_URL, e.g. http://localhost:11235)",
       "groups": ["research", "web"]
-    },
-    "browsermcp": {
-      "command": "npx",
-      "args": ["-y", "@browsermcp/mcp@latest"],
-      "timeout": 15,
-      "description": "Browser automation via Chrome extension (see docs/BROWSER_MCP_DOCKER.md)",
-      "groups": ["research", "development"]
     }
   },
   "strictProfile": {
