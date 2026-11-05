@@ -4,6 +4,12 @@
 
 MCP proxy with lazy tool loading and hybrid search. Clients connect by URL only — no local MCP install on the agent host.
 
+## Who it's for
+
+- **Teams / ops** that run many MCP servers on a shared host and want one stable URL for Cursor, Claude Desktop, or other MCP clients.
+- **Agent builders** who need dozens of tools without pasting every server into each client's config.
+- **Not a replacement** for a single local MCP you already wire directly — use the router when the catalog grows or credentials must stay off the laptop.
+
 ## What
 
 A single HTTP endpoint that:
@@ -12,9 +18,14 @@ A single HTTP endpoint that:
 - indexes their tools into SQLite;
 - exposes a small router surface (`search_tools`, `call_server_tool`, …) so agents find and call tools without loading every server up front.
 
-## Why
+## Why (vs wiring MCP servers into the client)
 
-Agent clients (Cursor, etc.) hit one URL instead of dozens of MCP configs. Credentials and LAN-only servers stay on the router host; the client only needs the router URL (and optional Bearer token).
+| Direct MCP in the client | Via mcp-router |
+|--------------------------|----------------|
+| One config entry per server; every client repeats secrets and URLs | One URL; registry and secrets live on the router host |
+| Client loads / lists all tools up front (context bloat) | Hybrid search (BM25 + vectors); call only what matches |
+| Private / LAN-only servers need VPN or public exposure | Downstream stays on the router network; client only sees the proxy |
+| Hard to share the same tool set across people and agents | Shared compose + `.env` + registry; optional Bearer + strict allow-list |
 
 ## Tech stack
 
@@ -221,17 +232,17 @@ Configure allow-list via env (wins) or `strictProfile` in `registry.json`:
 
 ```bash
 # CSV: whole servers and/or server:tool keys
-STRICT_ALLOWLIST=hindsight,searxng,graphiti:search_nodes
+STRICT_ALLOWLIST=docs,web-search,wiki:lookup
 
 # or JSON
-STRICT_ALLOWLIST='{"servers":["hindsight","searxng"],"tools":[],"read_only":true}'
+STRICT_ALLOWLIST='{"servers":["docs","web-search"],"tools":[],"read_only":true}'
 ```
 
 ```json
 {
   "strictProfile": {
-    "servers": ["hindsight", "searxng"],
-    "tools": ["graphiti:search_nodes"],
+    "servers": ["docs", "web-search"],
+    "tools": ["wiki:lookup"],
     "readOnly": false
   },
   "mcpServers": { }
