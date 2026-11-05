@@ -41,7 +41,7 @@ mcp-router = "mcp_router.cli:main"
 packages = ["src/mcp_router"]
 
 [tool.hatch.build.targets.sdist]
-only-include = ["src/mcp_router", "config", "scripts", "README.md", "pyproject.toml"]
+only-include = ["src/mcp_router", "config", "scripts", "README.md", "README.ru.md", "pyproject.toml"]
 
 [tool.ruff]
 target-version = "py311"

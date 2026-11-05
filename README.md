@@ -1,34 +1,106 @@
 # mcp-router
 
-MCP proxy with lazy tool loading and hybrid search (vector + BM25). Clients connect via URL only — no local MCP install.
+[Русский](README.ru.md)
 
-**Vector search:** prefers sqlite-vec ANN. If sqlite-vec is missing or fails, falls back to brute-force cosine over stored embeddings, capped at **5000** rows (`BRUTE_FORCE_VECTOR_SCAN_LIMIT` in `storage/sqlite_store.py`) with a warning log when the index is larger. Install sqlite-vec for unbounded ANN on big indexes.
+MCP proxy with lazy tool loading and hybrid search. Clients connect by URL only — no local MCP install on the agent host.
+
+## What
+
+A single HTTP endpoint that:
+
+- registers many downstream MCP servers (stdio / HTTP / SSE / WebSocket);
+- indexes their tools into SQLite;
+- exposes a small router surface (`search_tools`, `call_server_tool`, …) so agents find and call tools without loading every server up front.
+
+## Why
+
+Agent clients (Cursor, etc.) hit one URL instead of dozens of MCP configs. Credentials and LAN-only servers stay on the router host; the client only needs the router URL (and optional Bearer token).
+
+## Tech stack
+
+| Layer | Choice |
+|-------|--------|
+| HTTP API | FastAPI + Uvicorn |
+| Protocol | MCP Streamable HTTP (`/mcp`, optional strict `/mcp/v2`) |
+| Index | SQLite + FTS5 (BM25) + sqlite-vec ANN (cosine fallback if sqlite-vec unavailable) |
+| Embeddings | Remote OpenAI-compatible API **or** local fastembed |
+| Downstream transports | stdio, HTTP, SSE, WebSocket |
+| Deploy | Docker Compose; config via `.env` + `config/registry.json` |
+
+**Vector search:** prefers sqlite-vec ANN. If sqlite-vec is missing or fails, falls back to brute-force cosine over stored embeddings, capped at **5000** rows (`BRUTE_FORCE_VECTOR_SCAN_LIMIT`) with a warning when the index is larger. Install sqlite-vec for unbounded ANN on big indexes.
 
 ## Quick start (Docker)
+
+Defaults match `.env.example`: `HOST_PORT=8000`, container listens on `MCP_ROUTER_PORT=8000`.
 
 ```bash
 cp .env.example .env
 cp config/registry.json.example config/registry.json
-# Edit .env (HOST_PORT, embedding URL, API keys) and config/registry.json
-
+# Edit .env (HOST_PORT, embeddings, API keys) and config/registry.json
 docker compose up --build -d
-
-# Happy path (defaults: HOST_PORT=8000 → http://localhost:8000)
-curl http://localhost:8000/health
-curl http://localhost:8000/status
+curl "http://localhost:${HOST_PORT:-8000}/health"
 ```
 
-Change the published port with `HOST_PORT` in `.env` (container still listens on `MCP_ROUTER_PORT`, default `8000`). Secrets and downstream URLs stay in `.env` and are substituted into `config/registry.json` as `${VAR}`.
+Optional check: `curl "http://localhost:${HOST_PORT:-8000}/status"`.
+
+Change the published port with `HOST_PORT` in `.env` (mapping is `${HOST_PORT}:${MCP_ROUTER_PORT}` in `docker-compose.yml`). Secrets and downstream URLs stay in `.env` and are substituted into `config/registry.json` as `${VAR}`.
+
+## Configuration
+
+| File | Role |
+|------|------|
+| `.env` | Ports, auth, CORS, embeddings, API keys (copy from `.env.example`) |
+| `config/registry.json` | Downstream MCP servers (copy from `config/registry.json.example`; gitignored) |
+| `config/aliases.json` | Optional RU/EN synonyms for search boost |
+
+**Public SoT for registry:** `config/registry.json.example` (placeholders `${VAR}` only). Do not commit a live registry with private hostnames or secrets. See [docs/PUBLISH_CHECKLIST.md](docs/PUBLISH_CHECKLIST.md) before GitHub `visibility=public`.
+
+### Key environment variables
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `HOST_PORT` | `8000` | Host port published by `docker compose` |
+| `MCP_ROUTER_HOST` | `0.0.0.0` | Bind address inside the process/container |
+| `MCP_ROUTER_PORT` | `8000` | Listen port inside the process/container |
+| `REGISTRY_PATH` | `config/registry.json` | MCP server registry |
+| `INDEX_DB_PATH` | `data/tools.db` | SQLite index path |
+| `ALIASES_PATH` | `config/aliases.json` | RU/EN server/tool synonyms |
+| `SHADOW_RANKER` | `false` | Log weighted shadow ranking; agent still sees baseline RRF |
+| `ALIAS_BOOST` | `1.35` | Score multiplier when query matches an alias |
+| `EMBEDDING_URL` | — | With `EMBEDDING_MODEL`, use remote OpenAI-compatible API |
+| `EMBEDDING_MODEL` | — | Remote embedding model (required with `EMBEDDING_URL`) |
+| `LOCAL_EMBEDDING_MODEL` | `paraphrase-multilingual-MiniLM-L12-v2` | Local CPU model when URL not set |
+| `ROUTER_API_KEY` | — | Optional Bearer token for `/mcp` and `/mcp/v2` |
+| `ALLOWED_ORIGINS` | `*` | Comma-separated CORS origins |
+| `STRICT_MCP_ENABLED` | `true` | Mount strict surface at `/mcp/v2` |
+| `STRICT_ALLOWLIST` | — | CSV / JSON / path — curated tools for `/mcp/v2` |
+| `STRICT_READ_ONLY` | `false` | On `/mcp/v2`, only `annotations.readOnlyHint=true` tools |
+| `REINDEX_ON_START` | `true` | Reindex on startup |
+| `REINDEX_BACKGROUND` | `true` | Non-blocking reindex |
+| `REGISTRY_HOT_RELOAD` | `true` | Poll `registry.json` and reload without restart |
+| `REGISTRY_POLL_INTERVAL_SEC` | `2.0` | Hot-reload poll interval (seconds) |
+| `HEALTH_PROBE_ENABLED` | `true` | Periodic downstream `tools/list` probes |
+| `HEALTH_QUARANTINE_ENABLED` | `true` | Mark/skip failed servers; block their calls |
+
+## Security (public host)
+
+Default CORS is `ALLOWED_ORIGINS=*` and DNS-rebinding protection is off — fine for a trusted LAN, **not** for a host reachable from the public internet.
+
+If you expose mcp-router beyond a trusted network:
+
+1. Set `ROUTER_API_KEY` and require `Authorization: Bearer …` on clients.
+2. Set `ALLOWED_ORIGINS` to an explicit comma-separated allowlist (do not leave `*`).
+3. Prefer `/mcp/v2` with `STRICT_ALLOWLIST` for untrusted clients so they only reach a curated subset of tools.
 
 ## Cursor config
 
-Replace `<ROUTER_HOST>` with your router hostname or IP (e.g. `localhost` for local Docker).
+Use `localhost` (or your hostname) and the same port as `HOST_PORT` in `.env` (default `8000`).
 
 ```json
 {
   "mcpServers": {
     "mcp-router": {
-      "url": "http://<ROUTER_HOST>:8000/mcp"
+      "url": "http://localhost:8000/mcp"
     }
   }
 }
@@ -40,7 +112,7 @@ With Bearer auth:
 {
   "mcpServers": {
     "mcp-router": {
-      "url": "http://<ROUTER_HOST>:8000/mcp",
+      "url": "http://localhost:8000/mcp",
       "headers": {
         "Authorization": "Bearer <ROUTER_API_KEY>"
       }
@@ -48,6 +120,8 @@ With Bearer auth:
   }
 }
 ```
+
+If `HOST_PORT=8010`, use `http://localhost:8010/mcp` instead.
 
 ## Router tools
 
@@ -89,10 +163,6 @@ Credentials stay on the router host (`.env` / registry headers) — error text r
 
 Server-side `config/registry.json` — compatible with graphindex format (`mcpServers` + optional `groups`). Downstream servers must be reachable from the router host/container.
 
-**Public SoT:** `config/registry.json.example` (placeholders `${VAR}` only). Live `config/registry.json` is gitignored — copy the example and point URLs/secrets at your host via `.env`. Do not commit a deploy registry with LAN IPs or internal hostnames.
-
-See [docs/PUBLISH_CHECKLIST.md](docs/PUBLISH_CHECKLIST.md) before changing GitHub visibility to public.
-
 ## CLI
 
 ```bash
@@ -103,15 +173,15 @@ mcp-router index-tools        # Rebuild SQLite index
 
 ## Development
 
-**После клонирования обязательно один раз:**
+After clone, run once:
 
 ```bash
 ./scripts/setup-dev.sh
 ```
 
-Скрипт создаёт `.venv`, ставит `pip install -e ".[dev]"` и **`pre-commit install`** — без этого git-хук не появится и `git commit` не запустит проверки. Конфиг `.pre-commit-config.yaml` в репозитории сам по себе хуки не устанавливает.
+Creates `.venv`, runs `pip install -e ".[dev]"`, and `pre-commit install`. Without that, git hooks are not installed.
 
-Или вручную:
+Or manually:
 
 ```bash
 python -m venv .venv && source .venv/bin/activate
@@ -119,7 +189,7 @@ pip install -e ".[dev]"
 pre-commit install --install-hooks
 ```
 
-Проверки:
+Checks:
 
 ```bash
 make check              # pre-commit (lint, typecheck, import-linter, tests)
@@ -133,56 +203,19 @@ mypy                    # typecheck
 
 Pydantic models live in `src/mcp_router/models/` (`Registry`, `Settings`, `ToolMetadata`, etc.). Registry JSON is validated on load via `services/registry_loader.py`.
 
-## Environment
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `HOST_PORT` | `8000` | Host port published by `docker compose` (`HOST_PORT:MCP_ROUTER_PORT`) |
-| `MCP_ROUTER_HOST` | `0.0.0.0` | Bind address inside the process/container |
-| `MCP_ROUTER_PORT` | `8000` | Listen port inside the process/container |
-| `REGISTRY_PATH` | `config/registry.json` | MCP server registry |
-| `INDEX_DB_PATH` | `data/tools.db` | SQLite index path |
-| `ALIASES_PATH` | `config/aliases.json` | RU/EN server/tool synonyms for index + boost |
-| `SHADOW_RANKER` | `false` | Log weighted shadow ranking; agent still sees baseline RRF |
-| `ALIAS_BOOST` | `1.35` | Score multiplier when query matches an alias |
-| `EMBEDDING_URL` | — | If set **with** `EMBEDDING_MODEL`, use remote OpenAI-compatible API |
-| `EMBEDDING_MODEL` | — | Remote embedding model (required with `EMBEDDING_URL`) |
-| `LOCAL_EMBEDDING_MODEL` | `paraphrase-multilingual-MiniLM-L12-v2` | Local CPU model when URL not set |
-| `ROUTER_API_KEY` | — | Optional Bearer token for `/mcp` and `/mcp/v2` |
-| `ALLOWED_ORIGINS` | `*` | Comma-separated CORS origins (e.g. `https://app.example.com,http://localhost:3000`) |
-| `STRICT_MCP_ENABLED` | `true` | Mount strict surface at `/mcp/v2` (rewrites to `/mcp` + allow-list) |
-| `STRICT_ALLOWLIST` | — | CSV (`hindsight,searxng:web_search`), JSON object, or path to JSON file |
-| `STRICT_READ_ONLY` | `false` | On `/mcp/v2`, only tools with `annotations.readOnlyHint=true` |
-| `REINDEX_ON_START` | `true` | Reindex on startup |
-| `REINDEX_BACKGROUND` | `true` | Non-blocking reindex |
-| `REGISTRY_HOT_RELOAD` | `true` | Poll `registry.json` and reload without restart |
-| `REGISTRY_POLL_INTERVAL_SEC` | `2.0` | Hot-reload poll interval (seconds) |
-| `HEALTH_PROBE_ENABLED` | `true` | Periodic downstream `tools/list` probes |
-| `HEALTH_QUARANTINE_ENABLED` | `true` | Day-path: mark/skip failed servers; block their calls (WOR-1092) |
-
-### Public deployment (security)
-
-Default CORS is `ALLOWED_ORIGINS=*` and DNS-rebinding protection is off — fine for a trusted LAN, **not** for a host reachable from the public internet.
-
-If you expose mcp-router beyond the LAN:
-
-1. Set `ROUTER_API_KEY` and require `Authorization: Bearer …` on clients (see Cursor config above).
-2. Set `ALLOWED_ORIGINS` to an explicit comma-separated allowlist of browser origins (do not leave `*`).
-3. Prefer `/mcp/v2` with `STRICT_ALLOWLIST` for untrusted clients so they only reach a curated subset of tools.
-
 ## Endpoints
 
 | Path | Description |
 |------|-------------|
 | `GET /health` | Liveness |
 | `GET /status` | tool_count, last_indexed_at, embedding status, search_quality, downstream_health probes, mcp_surfaces |
-| `POST /mcp` | MCP Streamable HTTP — **full** surface (default; unchanged) |
+| `POST /mcp` | MCP Streamable HTTP — **full** surface |
 | `POST /mcp/v2` | MCP Streamable HTTP — **strict** surface (allow-list / optional read-only) |
 | `POST /admin/reindex` | Trigger background reindex |
 
 ### When to use `/mcp/v2`
 
-Point safe / untrusted clients at `/mcp/v2` when they should only reach a curated subset of downstream servers/tools. Keep agents that need the full LAN registry on `/mcp`.
+Point safe / untrusted clients at `/mcp/v2` when they should only reach a curated subset of downstream servers/tools. Keep agents that need the full registry on `/mcp`.
 
 Configure allow-list via env (wins) or `strictProfile` in `registry.json`:
 
