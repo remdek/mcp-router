@@ -30,8 +30,23 @@ Untracking a file does **not** remove it from old commits. Before `visibility=pu
 - [ ] Search for token shapes: `git log -p --all -S 'sk-' -S 'ghp_' -S 'glpat-'`
 - [ ] If old commits still contain LAN registry or secrets, rewrite/purge history (e.g. `git filter-repo` / BFG) **or** accept residual exposure and rotate anything that ever lived in those blobs
 
+## Clean repo / residual PR refs (recreate gate)
+
+GitHub keeps `refs/pull/*/head` after ordinary history rewrites; those refs are
+read-only via the API (422). A repo that once held LAN registry blobs or secrets
+in **any** reachable tip (including old PR heads) is not safe to flip public
+until those refs are gone.
+
+- [ ] Default branch tip is the intended orphan/clean history (not a pre-purge tip)
+- [ ] `git ls-remote origin 'refs/pull/*/head'` returns **empty** (0 lines)
+- [ ] If pull refs remain: recreate the GitHub repo from the clean orphan `main`
+      (archive the old repo private; do **not** import old PRs / mirror the dirty remote)
+- [ ] After recreate, Multica / local remotes and any bare cache point at the **new**
+      `remdek/mcp-router` and `refs/heads/main` matches `origin/main`
+
 ## Final gate
 
 - [ ] `git status` clean; PR merged
 - [ ] One last `gitleaks detect --source . --no-git` (or pre-commit) on the default branch
+- [ ] Pull-refs check above is green (clean repo)
 - [ ] Only then change GitHub visibility

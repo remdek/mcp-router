@@ -1,3 +1,9 @@
+# Historical plan (archived)
+
+> **Archived.** Pre-implementation plan for standalone mcp-router. Not current architecture — see [`ARCHITECTURE.md`](ARCHITECTURE.md) and `docs/context/`.
+
+---
+
 # Окончательный план: mcp-router (новое приложение)
 
 Целевая папка: `/home/msm/git-repos/mcp-router`
