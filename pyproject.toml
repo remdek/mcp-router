@@ -88,14 +88,24 @@ exclude_type_checking_imports = true
 name = "Services do not import HTTP/CLI adapters"
 type = "forbidden"
 source_modules = ["mcp_router.services"]
-forbidden_modules = ["mcp_router.http_server", "mcp_router.cli"]
+forbidden_modules = [
+    "mcp_router.http_server",
+    "mcp_router.http_middleware",
+    "mcp_router.http_mcp_tools",
+    "mcp_router.cli",
+]
 as_packages = true
 
 [[tool.importlinter.contracts]]
 name = "Index does not import HTTP/CLI adapters"
 type = "forbidden"
 source_modules = ["mcp_router.index"]
-forbidden_modules = ["mcp_router.http_server", "mcp_router.cli"]
+forbidden_modules = [
+    "mcp_router.http_server",
+    "mcp_router.http_middleware",
+    "mcp_router.http_mcp_tools",
+    "mcp_router.cli",
+]
 as_packages = true
 
 [[tool.importlinter.contracts]]
@@ -104,6 +114,8 @@ type = "forbidden"
 source_modules = ["mcp_router.storage"]
 forbidden_modules = [
     "mcp_router.http_server",
+    "mcp_router.http_middleware",
+    "mcp_router.http_mcp_tools",
     "mcp_router.cli",
     "mcp_router.services",
     "mcp_router.index",
@@ -118,6 +130,8 @@ type = "forbidden"
 source_modules = ["mcp_router.transports"]
 forbidden_modules = [
     "mcp_router.http_server",
+    "mcp_router.http_middleware",
+    "mcp_router.http_mcp_tools",
     "mcp_router.cli",
     "mcp_router.services",
     "mcp_router.index",
@@ -132,6 +146,8 @@ type = "forbidden"
 source_modules = ["mcp_router.models"]
 forbidden_modules = [
     "mcp_router.http_server",
+    "mcp_router.http_middleware",
+    "mcp_router.http_mcp_tools",
     "mcp_router.cli",
     "mcp_router.services",
     "mcp_router.index",
@@ -148,6 +164,8 @@ type = "forbidden"
 source_modules = ["mcp_router.embedding"]
 forbidden_modules = [
     "mcp_router.http_server",
+    "mcp_router.http_middleware",
+    "mcp_router.http_mcp_tools",
     "mcp_router.cli",
     "mcp_router.services",
     "mcp_router.index",
