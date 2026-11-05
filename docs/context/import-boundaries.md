@@ -25,7 +25,7 @@ related:
 ## Intended layers
 
 ```text
-http_server / cli          # adapters (composition root)
+http_server / http_middleware / http_mcp_tools / cli   # adapters
         ↓
 services / index           # application
         ↓
@@ -39,8 +39,8 @@ siblings that sit above them.
 
 | Contract | Rule |
 |---|---|
-| Services ↔ adapters | `services` must not import `http_server` or `cli` |
-| Index ↔ adapters | `index` must not import `http_server` or `cli` |
+| Services ↔ adapters | `services` must not import `http_server`, `http_middleware`, `http_mcp_tools`, or `cli` |
+| Index ↔ adapters | `index` must not import `http_server`, `http_middleware`, `http_mcp_tools`, or `cli` |
 | Storage leaf | `storage` must not import adapters, services, index, transports, embedding |
 | Transports leaf | `transports` must not import adapters, services, index, storage, embedding |
 | Models leaf | `models` must not import any other `mcp_router` package |

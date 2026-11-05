@@ -1,0 +1,301 @@
+"""MCP tool handlers registered on the router FastMCP instance."""
+
+from __future__ import annotations
+
+import json
+import time
+from typing import Any
+
+from mcp.server.fastmcp import FastMCP
+
+from mcp_router.services.feedback import (
+    FeedbackValidationError,
+    ReviewTargetNotFound,
+)
+from mcp_router.services.feedback_contract import (
+    FEEDBACK_DESCRIPTION,
+    REVIEW_DESCRIPTION,
+    FeedbackCategory,
+    ReviewUsefulness,
+)
+from mcp_router.services.health_quarantine import (
+    annotate_server_results,
+    failed_server_names,
+    filter_tool_results,
+    is_server_quarantined,
+    probe_errors,
+)
+from mcp_router.services.responses import (
+    assess_search_confidence,
+    classify_failure_kind,
+    group_results_by_server,
+    normalize_tool_result,
+    remediation_error,
+)
+from mcp_router.services.server_search import search_servers as search_registered_servers
+from mcp_router.services.strict_policy import get_surface
+
+
+def register_mcp_tools(mcp: FastMCP) -> None:
+    """Attach router MCP tools; state is resolved lazily from http_server."""
+
+    @mcp.tool()
+    async def get_router_status() -> str:
+        """Router health: index state, embedding mode, reindex progress, downstream probes, reconnect hints."""
+        from mcp_router import http_server as hs
+
+        return json.dumps(await hs._router_status_snapshot(), ensure_ascii=False, indent=2)
+
+    @mcp.tool()
+    async def search_servers(query: str = "", limit: int = 20) -> str:
+        """Search registered downstream MCP servers (not individual tools)."""
+        from mcp_router import http_server as hs
+
+        state = hs.state
+        started = time.perf_counter()
+        results = search_registered_servers(
+            state.server_manager, state.store, query=query, limit=limit
+        )
+        if get_surface() == "strict":
+            results = state.strict_policy.filter_server_results(results)[:limit]
+        if state.settings.health_quarantine_enabled:
+            results = annotate_server_results(
+                results,
+                failed_server_names(state.health_prober),
+                errors=probe_errors(state.health_prober),
+            )
+        latency_ms = (time.perf_counter() - started) * 1000.0
+        search_id = state.search_telemetry.log_search(
+            kind="servers",
+            query=query,
+            results=results,
+            latency_ms=latency_ms,
+        )
+        payload = {
+            "query": query,
+            "search_id": search_id,
+            "results": results,
+            "router": await hs._router_status_snapshot(),
+        }
+        return json.dumps(payload, ensure_ascii=False, indent=2)
+
+    @mcp.tool()
+    async def search_tools(
+        query: str,
+        limit: int = 10,
+        vector_weight: float = 0.4,
+        fulltext_weight: float = 0.6,
+        max_per_server: int | None = None,
+    ) -> str:
+        """Search MCP tools by semantic or keyword query (RU/EN)."""
+        from mcp_router import http_server as hs
+
+        state = hs.state
+        if state.tool_search is None:
+            return json.dumps(
+                remediation_error(
+                    "index_degraded",
+                    error="search not initialized",
+                ),
+                ensure_ascii=False,
+            )
+        raw_limit = limit * 3
+        started = time.perf_counter()
+        results, shadow = await state.tool_search.search_with_shadow(
+            query=query,
+            limit=raw_limit,
+            vector_weight=vector_weight,
+            fulltext_weight=fulltext_weight,
+        )
+        latency_ms = (time.perf_counter() - started) * 1000.0
+        per_server = max_per_server or state.settings.search_max_per_server
+        if state.settings.health_quarantine_enabled:
+            quarantine = failed_server_names(state.health_prober)
+            results = filter_tool_results(results, quarantine)
+            if shadow is not None:
+                shadow = filter_tool_results(shadow, quarantine)
+        grouped = group_results_by_server(results, max_per_server=per_server)[:limit]
+        if get_surface() == "strict":
+            grouped = state.strict_policy.filter_tool_results(grouped)[:limit]
+        shadow_grouped = None
+        if shadow is not None:
+            shadow_grouped = group_results_by_server(shadow, max_per_server=per_server)[:limit]
+            if get_surface() == "strict":
+                shadow_grouped = state.strict_policy.filter_tool_results(shadow_grouped)[:limit]
+        search_id = state.search_telemetry.log_search(
+            kind="tools",
+            query=query,
+            results=grouped,
+            latency_ms=latency_ms,
+            shadow_results=shadow_grouped,
+        )
+        confidence, confidence_hint = assess_search_confidence(grouped)
+        router = await hs._router_status_snapshot()
+        index_status_name = router["index_status"]["status"]
+        index_degraded = (
+            router["reindex_in_progress"]
+            or index_status_name in ("error", "indexing", "pending")
+            or (confidence == "none" and int(router["tool_count"] or 0) == 0)
+        )
+        if router["reindex_in_progress"]:
+            confidence_hint = f"{confidence_hint} Index rebuild in progress — results may be stale."
+
+        payload: dict[str, Any] = {
+            "ok": True,
+            "query": query,
+            "search_id": search_id,
+            "confidence": confidence,
+            "confidence_hint": confidence_hint,
+            "results": grouped,
+            "router": {
+                "reindex_in_progress": router["reindex_in_progress"],
+                "index_status": index_status_name,
+                "tool_count": router["tool_count"],
+            },
+        }
+        if index_degraded:
+            rem = remediation_error(
+                "index_degraded",
+                error=f"index_status={index_status_name}; tool_count={router['tool_count']}",
+            )
+            payload["failure_kind"] = rem["failure_kind"]
+            payload["reconnect_hint"] = rem["reconnect_hint"]
+            payload["next_action"] = rem["next_action"]
+
+        return json.dumps(payload, ensure_ascii=False, indent=2)
+
+    @mcp.tool()
+    async def call_server_tool(
+        server_name: str,
+        tool_name: str,
+        arguments: dict[str, Any] | None = None,
+    ) -> str:
+        """Call a tool on a downstream MCP server."""
+        from mcp_router import http_server as hs
+
+        state = hs.state
+        args = arguments or {}
+        call_id = state.search_telemetry.log_call_audit(server_name, tool_name, ok=None)
+        if get_surface() == "strict":
+            schema = hs._lookup_tool_schema(server_name, tool_name)
+            allowed, reason = state.strict_policy.allows_tool(
+                server_name, tool_name, tool_schema=schema
+            )
+            if not allowed:
+                return json.dumps(
+                    {
+                        **remediation_error(
+                            "strict_denied",
+                            error=reason,
+                            server_name=server_name,
+                            tool_name=tool_name,
+                        ),
+                        "call_id": call_id,
+                    },
+                    ensure_ascii=False,
+                )
+        if state.server_manager.get_server_config(server_name) is None:
+            return json.dumps(
+                {
+                    **remediation_error(
+                        "tool_not_found",
+                        error=f"Server not found in registry: {server_name}",
+                        server_name=server_name,
+                        tool_name=tool_name,
+                    ),
+                    "call_id": call_id,
+                },
+                ensure_ascii=False,
+            )
+        quarantine = failed_server_names(state.health_prober)
+        if is_server_quarantined(
+            server_name,
+            quarantine,
+            enabled=state.settings.health_quarantine_enabled,
+        ):
+            err = probe_errors(state.health_prober).get(server_name) or "failed last health probe"
+            return json.dumps(
+                {
+                    **remediation_error(
+                        "server_unhealthy",
+                        error=f"Server quarantined (unhealthy): {server_name}: {err}",
+                        server_name=server_name,
+                        tool_name=tool_name,
+                    ),
+                    "call_id": call_id,
+                },
+                ensure_ascii=False,
+            )
+        try:
+            raw = await state.server_manager.call_tool(server_name, tool_name, args)
+            normalized = normalize_tool_result(raw)
+            return json.dumps(
+                {
+                    "ok": not normalized["is_error"],
+                    "call_id": call_id,
+                    "server_name": server_name,
+                    "tool_name": tool_name,
+                    "result": normalized,
+                    "error_source": "tool" if normalized["is_error"] else None,
+                },
+                ensure_ascii=False,
+                default=str,
+            )
+        except Exception as exc:
+            kind = classify_failure_kind(exc)
+            return json.dumps(
+                {
+                    **remediation_error(
+                        kind,
+                        error=str(exc),
+                        server_name=server_name,
+                        tool_name=tool_name,
+                    ),
+                    "call_id": call_id,
+                },
+                ensure_ascii=False,
+            )
+
+    @mcp.tool(description=FEEDBACK_DESCRIPTION)
+    async def feedback(
+        category: FeedbackCategory,
+        message: str,
+        call_ids: list[str] | None = None,
+        search_ids: list[str] | None = None,
+    ) -> str:
+        """Local feedback intake (quality / friction / other). Does not call downstream."""
+        from mcp_router import http_server as hs
+
+        try:
+            result = hs.state.feedback_service.submit_feedback(
+                category=category,
+                message=message,
+                call_ids=call_ids,
+                search_ids=search_ids,
+            )
+            return json.dumps(result, ensure_ascii=False, indent=2)
+        except FeedbackValidationError as exc:
+            return json.dumps({"ok": False, "error": str(exc)}, ensure_ascii=False)
+
+    @mcp.tool(description=REVIEW_DESCRIPTION)
+    async def review(
+        usefulness: ReviewUsefulness,
+        call_id: str | None = None,
+        search_id: str | None = None,
+        reason: str | None = None,
+    ) -> str:
+        """Rate a prior call or search. Local SQLite write only — no downstream."""
+        from mcp_router import http_server as hs
+
+        try:
+            result = hs.state.feedback_service.submit_review(
+                usefulness=usefulness,
+                call_id=call_id,
+                search_id=search_id,
+                reason=reason,
+            )
+            return json.dumps(result, ensure_ascii=False, indent=2)
+        except ReviewTargetNotFound as exc:
+            return json.dumps({"ok": False, "error": str(exc)}, ensure_ascii=False)
+        except FeedbackValidationError as exc:
+            return json.dumps({"ok": False, "error": str(exc)}, ensure_ascii=False)
