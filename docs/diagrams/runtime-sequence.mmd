@@ -1,0 +1,28 @@
+sequenceDiagram
+  participant C as Client
+  participant R as mcp-router
+  participant Idx as SQLite index
+  participant Cache as tools/list cache<br/>TTL 30m
+  participant D as Downstream MCP
+
+  Note over C,R: Client sees a small router surface<br/>not the full tools catalog
+
+  C->>R: search_tools(query)
+  R->>Idx: hybrid BM25 + vectors → RRF
+  alt index / channels empty
+    R->>Cache: get tools:{server}
+    alt cache miss
+      Cache->>D: tools/list
+      D-->>Cache: tool defs
+      Note over Cache: TTL 30m (default 1800s)
+    end
+    Cache-->>R: cached / live list
+  end
+  R-->>C: ranked matches
+
+  C->>R: call_server_tool(server, tool, args)
+  R->>D: tools/call
+  D-->>R: result
+  R-->>C: result
+
+  Note over Idx,D: Indexing / probe: tools/list → Cache + SQLite
