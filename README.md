@@ -9,12 +9,16 @@ MCP proxy with lazy tool loading and hybrid search (vector + BM25). Clients conn
 ```bash
 cp .env.example .env
 cp config/registry.json.example config/registry.json
-# Edit .env (embedding URL, API keys) and config/registry.json
+# Edit .env (HOST_PORT, embedding URL, API keys) and config/registry.json
 
 docker compose up --build -d
+
+# Happy path (defaults: HOST_PORT=8000 → http://localhost:8000)
 curl http://localhost:8000/health
 curl http://localhost:8000/status
 ```
+
+Change the published port with `HOST_PORT` in `.env` (container still listens on `MCP_ROUTER_PORT`, default `8000`). Secrets and downstream URLs stay in `.env` and are substituted into `config/registry.json` as `${VAR}`.
 
 ## Cursor config
 
@@ -133,6 +137,9 @@ Pydantic models live in `src/mcp_router/models/` (`Registry`, `Settings`, `ToolM
 
 | Variable | Default | Description |
 |----------|---------|-------------|
+| `HOST_PORT` | `8000` | Host port published by `docker compose` (`HOST_PORT:MCP_ROUTER_PORT`) |
+| `MCP_ROUTER_HOST` | `0.0.0.0` | Bind address inside the process/container |
+| `MCP_ROUTER_PORT` | `8000` | Listen port inside the process/container |
 | `REGISTRY_PATH` | `config/registry.json` | MCP server registry |
 | `INDEX_DB_PATH` | `data/tools.db` | SQLite index path |
 | `ALIASES_PATH` | `config/aliases.json` | RU/EN server/tool synonyms for index + boost |
@@ -209,7 +216,7 @@ Calls outside the allow-list return typed `failure_kind=strict_denied` (same rem
 - **`entrypoint.sh: no such file or directory` (Windows)** — CRLF line endings in shell scripts. Pull latest (`.gitattributes` + Dockerfile fix) and rebuild: `docker compose build --no-cache && docker compose up -d`.
 - **Embedding / reindex errors** — if `EMBEDDING_URL` + `EMBEDDING_MODEL` set, uses remote API; otherwise local CPU (fastembed). Check `get_router_status` for mode and health.
 - **Desktop-only MCP servers (browsermcp, etc.)** — `lsof`/`xargs` fixed in Docker image (`procps`, `findutils`). Real requirement: Chrome extension + WebSocket on port 9009 (`9009:9009` in compose). See [docs/BROWSER_MCP_DOCKER.md](docs/BROWSER_MCP_DOCKER.md). For headless-in-container use `chrome-devtools-mcp`.
-- **Cursor `fetch failed` / ECONNREFUSED** — check container is up (`docker ps`), port mapping (`8010:8000` → use `http://localhost:8010/mcp`), and `/status` shows `index_status: ready`.
+- **Cursor `fetch failed` / ECONNREFUSED** — check container is up (`docker ps`), published port matches `HOST_PORT` in `.env` (default `8000` → `http://localhost:8000/mcp`), and `/status` shows `index_status: ready`.
 
 ## Docs
 
