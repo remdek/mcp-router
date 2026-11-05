@@ -25,20 +25,19 @@ Clients use Streamable HTTP at `/mcp` (optional strict surface `/mcp/v2`). There
 
 ## Runtime diagram
 
-Rendered sequence (hero for README; English labels; shows SQLite hybrid index + `tools/list` cache TTL 30m):
+Curated PNG hero for README (English labels; SQLite hybrid index + `tools/list` cache TTL 30m):
 
-![mcp-router runtime sequence](assets/runtime-sequence.svg)
+![mcp-router runtime sequence](assets/runtime-sequence.png)
 
-- Mermaid source: [`diagrams/runtime-sequence.mmd`](diagrams/runtime-sequence.mmd)
-- Assets: [`assets/runtime-sequence.svg`](assets/runtime-sequence.svg), [`assets/runtime-sequence.png`](assets/runtime-sequence.png)
-- Rebuild (needs Chrome/Chromium for puppeteer):
+- Hero asset: [`assets/runtime-sequence.png`](assets/runtime-sequence.png) (shown in `README.md` / `README.ru.md` headers)
+- Mermaid source (editable canon of the sequence): [`diagrams/runtime-sequence.mmd`](diagrams/runtime-sequence.mmd)
+- Optional SVG rebuild via mermaid-cli (visual style may differ from the curated PNG):
 
 ```bash
 npx -y @mermaid-js/mermaid-cli@11.4.2 \
   -i docs/diagrams/runtime-sequence.mmd \
   -o docs/assets/runtime-sequence.svg \
   -b white -t default -w 1200
-# optional PNG: change -o to docs/assets/runtime-sequence.png and add -s 2
 ```
 
 ASCII overview (package layers; SoT remains `src/mcp_router/**`):

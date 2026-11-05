@@ -2,6 +2,8 @@
 
 [Русский](README.ru.md)
 
+![mcp-router runtime sequence](docs/assets/runtime-sequence.png)
+
 MCP proxy with lazy tool loading and hybrid search. Clients connect by URL only — no local MCP install on the agent host.
 
 ## Who it's for
@@ -20,9 +22,7 @@ A single HTTP endpoint that:
 
 ## How it works
 
-Runtime sequence: hybrid search over the SQLite index, with a `tools/list` in-memory cache (TTL 30m) as fallback, then proxied `tools/call`.
-
-![mcp-router runtime sequence](docs/assets/runtime-sequence.svg)
+Runtime sequence (header diagram): hybrid search over the SQLite index, with a `tools/list` in-memory cache (TTL 30m) as fallback, then proxied `tools/call`.
 
 Source: [`docs/diagrams/runtime-sequence.mmd`](docs/diagrams/runtime-sequence.mmd). Details: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
 

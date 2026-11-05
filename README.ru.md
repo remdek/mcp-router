@@ -2,6 +2,8 @@
 
 [English](README.md)
 
+![mcp-router runtime sequence](docs/assets/runtime-sequence.png)
+
 MCP-прокси с ленивой загрузкой инструментов и гибридным поиском. Клиенты подключаются только по URL — локальная установка MCP на хосте агента не нужна.
 
 ## Для кого
@@ -20,9 +22,7 @@ MCP-прокси с ленивой загрузкой инструментов �
 
 ## Как это работает
 
-Схема runtime (подписи на английском): гибридный поиск по SQLite-индексу, fallback через in-memory кэш `tools/list` (TTL 30m), затем проксированный `tools/call`.
-
-![mcp-router runtime sequence](docs/assets/runtime-sequence.svg)
+Схема runtime в шапке (подписи на английском): гибридный поиск по SQLite-индексу, fallback через in-memory кэш `tools/list` (TTL 30m), затем проксированный `tools/call`.
 
 Источник: [`docs/diagrams/runtime-sequence.mmd`](docs/diagrams/runtime-sequence.mmd). Подробности: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
 
