@@ -136,6 +136,8 @@ curl "http://localhost:${HOST_PORT:-8000}/health"
 
 ## Инструменты роутера
 
+Краткий гайд для агентов по этому surface: [`SKILL.md`](SKILL.md) (search → call, когда звать status / review / feedback).
+
 | Инструмент | Описание |
 |------------|----------|
 | `get_router_status` | Здоровье, состояние индекса/реиндекса, режим embeddings, probes, reconnect hints |
