@@ -1,0 +1,25 @@
+services:
+  mcp-router:
+    build:
+      context: .
+      args:
+        PLAYWRIGHT_INSTALL: ${PLAYWRIGHT_INSTALL:-false}
+    container_name: mcp-router
+    restart: unless-stopped
+    ports:
+      - "8010:8000"
+    volumes:
+      - ./config:/app/config:ro
+      - ./data:/app/data
+    env_file:
+      - .env
+    environment:
+      REGISTRY_PATH: /app/config/registry.json
+      INDEX_DB_PATH: /app/data/tools.db
+      REINDEX_ON_START: "true"
+      REINDEX_BACKGROUND: "true"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3

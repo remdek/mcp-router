@@ -1,0 +1,14 @@
+{
+  "servers": {
+    "hindsight": ["память", "memory", "recall bank", "short-term memory"],
+    "graphiti": ["граф", "temporal graph", "falkor", "who when why"],
+    "searxng": ["веб поиск", "web search", "интернет"],
+    "context7": ["документация библиотеки", "library docs"]
+  },
+  "tools": {
+    "hindsight:recall": ["вспомнить", "recall memories", "память агента"],
+    "hindsight:sync_retain": ["запомнить", "retain", "сохранить факт"],
+    "searxng:searxng_web_search": ["найди в интернете", "поиск в сети"],
+    "context7:query-docs": ["прочитай документацию", "docs query"]
+  }
+}

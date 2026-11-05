@@ -1,0 +1,13 @@
+__pycache__/
+*.py[cod]
+.venv/
+.env
+data/
+*.db
+*.db-journal
+dist/
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+# Live/deploy registry (LAN hosts, internal URLs) — public SoT is registry.json.example
+config/registry.json

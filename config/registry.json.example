@@ -1,0 +1,87 @@
+{
+  "groups": [
+    {
+      "id": "development",
+      "description": "Development and code workflows",
+      "keywords": ["code", "development", "docs", "задачи", "код", "разработка"]
+    },
+    {
+      "id": "research",
+      "description": "Search and documentation lookup",
+      "keywords": ["search", "docs", "research", "поиск", "документация"]
+    },
+    {
+      "id": "vcs",
+      "description": "Version control systems",
+      "keywords": ["git", "github", "gitlab", "commits"]
+    },
+    {
+      "id": "web",
+      "description": "Web search and page extraction",
+      "keywords": ["web", "url", "crawl", "scrape", "search", "page"]
+    }
+  ],
+  "mcpServers": {
+    "github": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-github"],
+      "env": {
+        "GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_PERSONAL_ACCESS_TOKEN}"
+      },
+      "description": "GitHub integration: repos, issues, PRs, commits, branches, search",
+      "groups": ["vcs", "development"]
+    },
+    "context7": {
+      "type": "http",
+      "url": "https://mcp.context7.com/mcp",
+      "headers": {
+        "Authorization": "Bearer ${CONTEXT7_API_KEY}"
+      },
+      "description": "Library documentation lookup (Context7)",
+      "groups": ["research", "development"]
+    },
+    "gitLab": {
+      "command": "npx",
+      "args": ["-y", "@zereight/mcp-gitlab"],
+      "env": {
+        "GITLAB_PERSONAL_ACCESS_TOKEN": "${GITLAB_PERSONAL_ACCESS_TOKEN}",
+        "GITLAB_API_URL": "${GITLAB_API_URL}",
+        "GITLAB_READ_ONLY_MODE": "false",
+        "USE_PIPELINE": "false",
+        "USE_MILESTONE": "false"
+      },
+      "description": "GitLab integration (set GITLAB_API_URL to your instance, e.g. https://gitlab.com/api/v4)",
+      "groups": ["vcs", "development"]
+    },
+    "searxng": {
+      "command": "npx",
+      "args": ["-y", "mcp-searxng"],
+      "env": {
+        "SEARXNG_URL": "${SEARXNG_URL}"
+      },
+      "description": "Metasearch via SearXNG (set SEARXNG_URL, e.g. http://localhost:8080)",
+      "groups": ["research", "web"]
+    },
+    "crawl4ai": {
+      "command": "npx",
+      "args": ["-y", "mcp-crawl4ai-ts"],
+      "env": {
+        "CRAWL4AI_BASE_URL": "${CRAWL4AI_BASE_URL}"
+      },
+      "description": "Crawl URLs via Crawl4AI (set CRAWL4AI_BASE_URL, e.g. http://localhost:11235)",
+      "groups": ["research", "web"]
+    },
+    "browsermcp": {
+      "command": "npx",
+      "args": ["-y", "@browsermcp/mcp@latest"],
+      "timeout": 15,
+      "description": "Browser automation via Chrome extension (see docs/BROWSER_MCP_DOCKER.md)",
+      "groups": ["research", "development"]
+    }
+  },
+  "strictProfile": {
+    "servers": [],
+    "tools": [],
+    "readOnly": false
+  }
+}
