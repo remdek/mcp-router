@@ -140,7 +140,7 @@ If `HOST_PORT=8010`, use `http://localhost:8010/mcp` instead.
 |------|-------------|
 | `get_router_status` | Health, index/reindex state, embedding mode, downstream probes, reconnect hints |
 | `search_servers` | Discover registered downstream servers (not tools); returns `search_id` |
-| `search_tools` | Hybrid search with confidence + per-server grouping; returns `search_id` |
+| `search_tools` | Hybrid search with confidence; results grouped for ranking convenience; returns `search_id` |
 | `call_server_tool` | Proxy call with normalized result and typed remediation errors; returns `call_id` |
 | `review` | Rate a prior `call_id` or `search_id` (`useful` / `partly` / `not_useful` / `not_sure`) |
 | `feedback` | Local quality/friction/other report; optional `call_ids` / `search_ids` |
@@ -172,7 +172,7 @@ Credentials stay on the router host (`.env` / registry headers) — error text r
 
 ## Registry format
 
-Server-side `config/registry.json` — compatible with graphindex format (`mcpServers` + optional `groups`). Downstream servers must be reachable from the router host/container.
+Server-side `config/registry.json`: top-level `mcpServers` maps server names to transport configs. Optional `groups` only organize servers for convenience and ranking — they are not a separate product. Downstream servers must be reachable from the router host/container.
 
 ## CLI
 
@@ -262,10 +262,9 @@ Calls outside the allow-list return typed `failure_kind=strict_denied` (same rem
 - **Desktop-only MCP servers (browsermcp, etc.)** — `lsof`/`xargs` fixed in Docker image (`procps`, `findutils`). Real requirement: Chrome extension + WebSocket on port 9009 (`9009:9009` in compose). See [docs/BROWSER_MCP_DOCKER.md](docs/BROWSER_MCP_DOCKER.md). For headless-in-container use `chrome-devtools-mcp`.
 - **Cursor `fetch failed` / ECONNREFUSED** — check container is up (`docker ps`), published port matches `HOST_PORT` in `.env` (default `8000` → `http://localhost:8000/mcp`), and `/status` shows `index_status: ready`.
 
-## Docs
+## More docs
 
-- [docs/context/](docs/context/) — design fragments (search, proxy call, registry, index) with `sources:` + import-linter contracts
-- [docs/PLAN.md](docs/PLAN.md) — implementation plan
-- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — graphindex reference analysis
+Operational notes (some files under `docs/` are historical and may lag the code):
+
 - [docs/BROWSER_MCP_DOCKER.md](docs/BROWSER_MCP_DOCKER.md) — browser MCP servers in Docker
 - [docs/PUBLISH_CHECKLIST.md](docs/PUBLISH_CHECKLIST.md) — before GitHub `visibility=public`

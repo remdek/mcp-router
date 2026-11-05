@@ -140,7 +140,7 @@ curl "http://localhost:${HOST_PORT:-8000}/health"
 |------------|----------|
 | `get_router_status` | Здоровье, состояние индекса/реиндекса, режим embeddings, probes, reconnect hints |
 | `search_servers` | Поиск зарегистрированных downstream-серверов (не инструментов); возвращает `search_id` |
-| `search_tools` | Гибридный поиск с confidence и группировкой по серверам; возвращает `search_id` |
+| `search_tools` | Гибридный поиск с confidence; результаты группируются для удобства и ранжирования; возвращает `search_id` |
 | `call_server_tool` | Прокси-вызов с нормализованным результатом и typed remediation; возвращает `call_id` |
 | `review` | Оценка прошлого `call_id` или `search_id` (`useful` / `partly` / `not_useful` / `not_sure`) |
 | `feedback` | Локальный отчёт quality/friction/other; опционально `call_ids` / `search_ids` |
@@ -172,7 +172,7 @@ curl "http://localhost:${HOST_PORT:-8000}/health"
 
 ## Формат registry
 
-Серверный `config/registry.json` — совместим с форматом graphindex (`mcpServers` + опционально `groups`). Downstream-серверы должны быть достижимы с хоста/контейнера роутера.
+Серверный `config/registry.json`: на верхнем уровне `mcpServers` — имена серверов → конфиги транспортов. Опциональные `groups` только группируют серверы для удобства и ранжирования — это не отдельный продукт. Downstream-серверы должны быть достижимы с хоста/контейнера роутера.
 
 ## CLI
 
@@ -262,10 +262,9 @@ STRICT_ALLOWLIST='{"servers":["docs","web-search"],"tools":[],"read_only":true}'
 - **Desktop-only MCP (browsermcp и т.п.)** — в образе есть `procps`/`findutils`. Нужны Chrome-расширение + WebSocket на порту 9009 (`9009:9009` в compose). См. [docs/BROWSER_MCP_DOCKER.md](docs/BROWSER_MCP_DOCKER.md). Для headless-in-container — `chrome-devtools-mcp`.
 - **Cursor `fetch failed` / ECONNREFUSED** — контейнер запущен (`docker ps`), порт совпадает с `HOST_PORT` в `.env` (по умолчанию `8000` → `http://localhost:8000/mcp`), `/status` показывает `index_status: ready`.
 
-## Документация
+## Доп. документы
 
-- [docs/context/](docs/context/) — фрагменты дизайна (search, proxy call, registry, index) с `sources:` + контракты import-linter
-- [docs/PLAN.md](docs/PLAN.md) — план реализации
-- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — анализ graphindex
+Операционные заметки (часть файлов в `docs/` историческая и может отставать от кода):
+
 - [docs/BROWSER_MCP_DOCKER.md](docs/BROWSER_MCP_DOCKER.md) — browser MCP в Docker
 - [docs/PUBLISH_CHECKLIST.md](docs/PUBLISH_CHECKLIST.md) — перед GitHub `visibility=public`
