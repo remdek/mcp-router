@@ -18,8 +18,8 @@ related:
 # Registry
 
 Downstream MCP servers are declared in `config/registry.json` (path from
-`REGISTRY_PATH` / `Settings`). The file is compatible with the graphindex
-shape: `mcpServers` plus optional `groups` and `strictProfile`.
+`REGISTRY_PATH` / `Settings`). Shape: `mcpServers` plus optional `groups`
+and `strictProfile` (same JSON layout historically used by graphindex).
 
 Public SoT is `config/registry.json.example` (`${VAR}` placeholders). Live
 `config/registry.json` is gitignored so deploy/LAN hosts are not published.
