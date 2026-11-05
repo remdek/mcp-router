@@ -18,6 +18,14 @@ A single HTTP endpoint that:
 - indexes their tools into SQLite;
 - exposes a small router surface (`search_tools`, `call_server_tool`, …) so agents find and call tools without loading every server up front.
 
+## How it works
+
+Runtime sequence: hybrid search over the SQLite index, with a `tools/list` in-memory cache (TTL 30m) as fallback, then proxied `tools/call`.
+
+![mcp-router runtime sequence](docs/assets/runtime-sequence.svg)
+
+Source: [`docs/diagrams/runtime-sequence.mmd`](docs/diagrams/runtime-sequence.mmd). Details: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
+
 ## Why (vs wiring MCP servers into the client)
 
 | Direct MCP in the client | Via mcp-router |

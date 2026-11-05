@@ -18,6 +18,14 @@ MCP-прокси с ленивой загрузкой инструментов �
 - индексирует их инструменты в SQLite;
 - отдаёт компактный router-surface (`search_tools`, `call_server_tool`, …), чтобы агенты находили и вызывали инструменты без предварительной загрузки всех серверов.
 
+## Как это работает
+
+Схема runtime (подписи на английском): гибридный поиск по SQLite-индексу, fallback через in-memory кэш `tools/list` (TTL 30m), затем проксированный `tools/call`.
+
+![mcp-router runtime sequence](docs/assets/runtime-sequence.svg)
+
+Источник: [`docs/diagrams/runtime-sequence.mmd`](docs/diagrams/runtime-sequence.mmd). Подробности: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
+
 ## Зачем (против прямого подключения MCP в клиент)
 
 | MCP напрямую в клиенте | Через mcp-router |

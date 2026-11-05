@@ -25,6 +25,24 @@ Clients use Streamable HTTP at `/mcp` (optional strict surface `/mcp/v2`). There
 
 ## Runtime diagram
 
+Rendered sequence (hero for README; English labels; shows SQLite hybrid index + `tools/list` cache TTL 30m):
+
+![mcp-router runtime sequence](assets/runtime-sequence.svg)
+
+- Mermaid source: [`diagrams/runtime-sequence.mmd`](diagrams/runtime-sequence.mmd)
+- Assets: [`assets/runtime-sequence.svg`](assets/runtime-sequence.svg), [`assets/runtime-sequence.png`](assets/runtime-sequence.png)
+- Rebuild (needs Chrome/Chromium for puppeteer):
+
+```bash
+npx -y @mermaid-js/mermaid-cli@11.4.2 \
+  -i docs/diagrams/runtime-sequence.mmd \
+  -o docs/assets/runtime-sequence.svg \
+  -b white -t default -w 1200
+# optional PNG: change -o to docs/assets/runtime-sequence.png and add -s 2
+```
+
+ASCII overview (package layers; SoT remains `src/mcp_router/**`):
+
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │  AI Client (Cursor / Claude Desktop / …)                    │
