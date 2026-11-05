@@ -64,7 +64,7 @@ curl "http://localhost:${HOST_PORT:-8000}/health"
 | `config/registry.json` | Downstream MCP-серверы (копия из `config/registry.json.example`; в gitignore) |
 | `config/aliases.json` | Опциональные RU/EN-синонимы для буста поиска |
 
-**Публичный SoT реестра:** `config/registry.json.example` (только плейсхолдеры `${VAR}`). Не коммитьте живой registry с приватными хостнеймами или секретами. Перед `visibility=public` на GitHub см. [docs/PUBLISH_CHECKLIST.md](docs/PUBLISH_CHECKLIST.md).
+**Публичный SoT реестра:** `config/registry.json.example` (только плейсхолдеры `${VAR}`). Не коммитьте живой registry с приватными хостнеймами или секретами.
 
 ### Основные переменные окружения
 
@@ -263,6 +263,5 @@ STRICT_ALLOWLIST='{"servers":["docs","web-search"],"tools":[],"read_only":true}'
 
 ## Доп. документы
 
-Операционные заметки (часть файлов в `docs/` историческая и может отставать от кода):
-
-- [docs/PUBLISH_CHECKLIST.md](docs/PUBLISH_CHECKLIST.md) — перед GitHub `visibility=public`
+- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — текущая схема роутера (HTTP, SQLite search, transports)
+- [docs/context/](docs/context/) — фрагменты дизайна, привязанные к исходникам (`make context-drift`)

@@ -64,7 +64,7 @@ Change the published port with `HOST_PORT` in `.env` (mapping is `${HOST_PORT}:$
 | `config/registry.json` | Downstream MCP servers (copy from `config/registry.json.example`; gitignored) |
 | `config/aliases.json` | Optional RU/EN synonyms for search boost |
 
-**Public SoT for registry:** `config/registry.json.example` (placeholders `${VAR}` only). Do not commit a live registry with private hostnames or secrets. See [docs/PUBLISH_CHECKLIST.md](docs/PUBLISH_CHECKLIST.md) before GitHub `visibility=public`.
+**Public SoT for registry:** `config/registry.json.example` (placeholders `${VAR}` only). Do not commit a live registry with private hostnames or secrets.
 
 ### Key environment variables
 
@@ -263,6 +263,5 @@ Calls outside the allow-list return typed `failure_kind=strict_denied` (same rem
 
 ## More docs
 
-Operational notes (some files under `docs/` are historical and may lag the code):
-
-- [docs/PUBLISH_CHECKLIST.md](docs/PUBLISH_CHECKLIST.md) — before GitHub `visibility=public`
+- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — current router layout (HTTP, SQLite search, transports)
+- [docs/context/](docs/context/) — focused design fragments tied to source files (`make context-drift`)

@@ -107,8 +107,8 @@ See `docs/context/index.md`.
 - Shape: `mcpServers` + optional `groups` / `strictProfile` (Pydantic `models/registry.py`).
 - Docker Compose publishes HTTP; secrets stay in `.env` on the router host.
 
-See `docs/context/registry.md`, `docs/context/proxy-call.md`, and `docs/PUBLISH_CHECKLIST.md` before making the GitHub repo public.
+See `docs/context/registry.md` and `docs/context/proxy-call.md`.
 
 ## What this is not
 
-This package is **not** the old graphindex / FalkorDB / `code-index-router` stack. Historical planning notes live in `docs/HISTORY.md` only.
+This package is **not** the old graphindex / FalkorDB / `code-index-router` stack.
