@@ -136,6 +136,8 @@ If `HOST_PORT=8010`, use `http://localhost:8010/mcp` instead.
 
 ## Router tools
 
+Short agent guide for this surface: [`SKILL.md`](SKILL.md) (search → call, when to use status / review / feedback).
+
 | Tool | Description |
 |------|-------------|
 | `get_router_status` | Health, index/reindex state, embedding mode, downstream probes, reconnect hints |
