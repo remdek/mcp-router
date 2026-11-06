@@ -8,7 +8,8 @@ Instead of loading every downstream tool into the agent context, the client sees
 
 | Tool | Role |
 |------|------|
-| `search_tools` | Hybrid search over indexed tools (RU/EN) |
+| `search_tools` | Hybrid search over indexed tools (RU/EN); schemas gated by strong-match floor |
+| `get_tool_schema` | Full schema for one `server` + `tool` (schema-on-demand lookup) |
 | `search_servers` | Search registered downstream **servers** |
 | `call_server_tool` | Proxy `tools/call` to a named server |
 | `get_router_status` | Index / embeddings / downstream probe snapshot |

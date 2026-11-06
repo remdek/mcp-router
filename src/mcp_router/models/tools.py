@@ -22,6 +22,7 @@ class ToolSearchResult(BaseModel):
     description: str = ""
     score: float = 0.0
     tool_schema: dict[str, Any] | None = None
+    schema_omitted: bool | None = None
     source: str | None = None
 
 
