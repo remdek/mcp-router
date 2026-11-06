@@ -69,7 +69,9 @@
         "CRAWL4AI_BASE_URL": "${CRAWL4AI_BASE_URL}"
       },
       "description": "Crawl URLs via Crawl4AI (set CRAWL4AI_BASE_URL, e.g. http://localhost:11235)",
-      "groups": ["research", "web"]
+      "groups": ["research", "web"],
+      "lifecycle": "lazy",
+      "idle_timeout_sec": 600
     }
   },
   "strictProfile": {

@@ -35,6 +35,44 @@ Public SoT is `config/registry.json.example` (`${VAR}` placeholders). Live
 Credentials stay on the router host — clients only see the router URL (and
 optional Bearer). Error paths redact bearer/api-key shaped secrets.
 
+## Lifecycle modes (WOR-1541)
+
+Per-server product fields (pi-mcp pattern), applied by `ServerManager` when
+building stdio transports. Connect is always **lazy** at the gateway: registry
+load never spawns processes; the first `tools/list` / `tools/call` connects.
+
+| `lifecycle` | Behavior | Default `idle_timeout_sec` |
+|-------------|----------|----------------------------|
+| unset | LAN defaults: stdio **oneshot** (spawn per request); browser allowlist `playwright` / `chrome-devtools` → **persistent** with 300s idle | transport default |
+| `lazy` | Reuse one stdio process across calls; disconnect after idle TTL | **600** (10 min) |
+| `keep-alive` | Reuse process; **no** idle shutdown (stay resident after first use) | **0** |
+| `lazy-keep-alive` | Same residency as `keep-alive` (gateway does not connect-at-startup) | **0** |
+
+Optional `idle_timeout_sec` overrides the default for that mode (`0` = never
+idle-close). Low-level `session_mode` (`oneshot` / `persistent`) remains for
+legacy configs when `lifecycle` is unset.
+
+Example:
+
+```json
+"playwright": {
+  "command": "npx",
+  "args": ["-y", "@playwright/mcp@latest"],
+  "lifecycle": "lazy-keep-alive",
+  "description": "Browser MCP — keep Chromium session after first call"
+},
+"github": {
+  "command": "npx",
+  "args": ["-y", "@modelcontextprotocol/server-github"],
+  "lifecycle": "lazy",
+  "idle_timeout_sec": 300
+}
+```
+
+Unset `lifecycle` on existing LAN registries is unchanged (oneshot / browser
+allowlist). Health probes share the stdio pool lock and never tear a live
+keep-alive process — see `proxy-call.md`.
+
 ## Hot reload (U7)
 
 With `REGISTRY_HOT_RELOAD=true` (default), `RegistryHotReloader` polls
