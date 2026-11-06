@@ -102,7 +102,7 @@ Import direction is enforced by import-linter (`make lint-imports`). Details: `d
 | Search | `index/search.py` | Vector + FTS → **RRF** (optional shadow weighted log) |
 | Storage | `storage/sqlite_*.py` | Schema, FTS, vector ANN / brute-force cosine |
 | Embeddings | `embedding/*` | OpenAI-compatible remote **or** local fastembed |
-| Health | `health_probe.py`, `health_quarantine.py` | Downstream probes; drop/block unhealthy servers |
+| Health | `health_probe.py`, `health_quarantine.py`, `failure_backoff.py` | Probes + quarantine; short agent-visible call failure backoff |
 | Strict | `strict_policy.py`, `DualMcpSurfaceMiddleware` | Allow-list on `/mcp/v2` |
 
 ## Hybrid search (runtime)
@@ -111,7 +111,7 @@ Import direction is enforced by import-linter (`make lint-imports`). Details: `d
 2. Detect servers from query (`intent_mapping`) + alias boosts (`aliases`).
 3. Vector ANN (sqlite-vec, else capped cosine) + FTS5 BM25 on SQLite.
 4. Merge with **RRF** (agent-visible). Optional `SHADOW_RANKER` logs weighted merge only.
-5. Apply health quarantine / strict filter; if both channels empty → keyword fallback on live `tools/list` cache.
+5. Apply health quarantine / failure backoff / strict filter; if both channels empty → keyword fallback on live `tools/list` cache.
 6. Client calls `call_server_tool(server_name, tool_name, arguments)` → `ServerManager` proxies unchanged args.
 7. Large call bodies are truncated by the output guard (ADR Layer C); full JSON spills to `data/call_artifacts/`.
 

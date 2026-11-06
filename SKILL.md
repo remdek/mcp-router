@@ -38,8 +38,8 @@ Keep `search_id` / `call_id` when you may `review` or `feedback` afterward.
 | `search_tools` | Need a capability; query in EN or RU; optional `limit`, weights, `max_per_server`, `include_schemas`, `include_schema_for` |
 | `get_tool_schema` | Need full input schema for a weak search hit before calling |
 | `call_server_tool` | After you know exact `server_name` + `tool_name` + args; huge results may be truncated (`output_guard`) |
-| `search_servers` | Discover registered servers (not tools); quarantine marks `healthy=false` |
-| `get_router_status` | Empty/odd search, index not ready, reconnect / embedding / probe questions |
+| `search_servers` | Discover registered servers (not tools); quarantine marks `healthy=false`; backoff adds `failure_backoff="failed Ns ago: …"` |
+| `get_router_status` | Empty/odd search, index not ready, reconnect / embedding / probe / failure_backoff questions |
 | `review` | Rate one prior `call_id` **or** `search_id` (`useful` / `partly` / `not_useful` / `not_sure`) |
 | `feedback` | Local quality/friction/other note; optional `call_ids` / `search_ids` |
 

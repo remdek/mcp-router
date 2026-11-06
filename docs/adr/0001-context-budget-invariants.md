@@ -64,7 +64,7 @@ path when they are short and actionable — they replace retries and guesswork.
 |----------|---------|------------------------|
 | P0 | **Schema-on-demand** (+ strong-match floor) | **Shipped (WOR-1537)** — omit `tool_schema` on weak search hits |
 | P0 | **Output guard** | **Shipped (WOR-1538)** — truncate large call results; point to full artifact/path |
-| P1 | **Failure backoff with reason** | Short “failed Ns ago: reason” beside quarantine |
+| P1 | **Failure backoff with reason** | **Shipped (WOR-1539)** — short “failed Ns ago: reason” beside quarantine |
 | P1 | Optional **`extract`** on call | Return selected fields; full body in side channel |
 | P2 | Lifecycle modes as product contract | Ops clarity; must not enlarge tool surface |
 

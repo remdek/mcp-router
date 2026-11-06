@@ -9,6 +9,7 @@ sources:
   - src/mcp_router/services/output_guard.py
   - src/mcp_router/services/strict_policy.py
   - src/mcp_router/services/health_probe.py
+  - src/mcp_router/services/failure_backoff.py
   - src/mcp_router/services/feedback.py
   - src/mcp_router/services/feedback_contract.py
   - src/mcp_router/transports/base.py
@@ -24,9 +25,9 @@ related:
 # Proxy call
 
 `call_server_tool` in `http_mcp_tools.py` is a thin adapter: strict allow-list
-check → registry presence → `ServerManager.call_tool` → normalize result →
-optional **output guard** or emit a typed remediation error. It does **not**
-re-model downstream APIs.
+check → registry presence → **failure backoff** / health quarantine →
+`ServerManager.call_tool` → normalize result → optional **output guard** or
+emit a typed remediation error. It does **not** re-model downstream APIs.
 
 ## Faithful relay
 
@@ -63,7 +64,7 @@ See ADR 0001 and `services/output_guard.py`.
 read-only). Denials return `failure_kind=strict_denied`. Full `/mcp` is
 unchanged.
 
-## Health
+## Health + failure backoff
 
 `health_probe` periodically checks downstream reachability for
 `get_router_status` / `/status`. HTTP/SSE/WebSocket probes use a one-shot
@@ -73,6 +74,13 @@ a second subprocess never races the call path (A3). Persistent browser stdio
 (`session_mode=persistent`, allowlist `playwright` / `chrome-devtools`) keeps
 one process across calls; a live process satisfies the probe without a second
 spawn or tearing the session (WOR-874).
+
+**Failure backoff** (WOR-1539) is the fast agent-visible layer: a failed
+connect/call records a sanitized reason for ~60s. While active,
+`call_server_tool` returns `failure_kind=failure_backoff` with
+`failed Ns ago: <reason>` instead of silent retries. Quarantine remains the
+probe-based day-path policy; both can apply, backoff carries the fresher
+reason when present.
 
 ## Boundaries
 
