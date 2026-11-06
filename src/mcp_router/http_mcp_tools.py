@@ -32,6 +32,7 @@ from mcp_router.services.responses import (
     normalize_tool_result,
     remediation_error,
 )
+from mcp_router.services.schema_budget import apply_schema_on_demand
 from mcp_router.services.server_search import search_servers as search_registered_servers
 from mcp_router.services.strict_policy import get_surface
 
@@ -86,8 +87,17 @@ def register_mcp_tools(mcp: FastMCP) -> None:
         vector_weight: float = 0.4,
         fulltext_weight: float = 0.6,
         max_per_server: int | None = None,
+        include_schemas: bool = False,
+        include_schema_for: list[str] | None = None,
     ) -> str:
-        """Search MCP tools by semantic or keyword query (RU/EN)."""
+        """Search MCP tools by semantic or keyword query (RU/EN).
+
+        By default only strong matches include full ``tool_schema``; weak hits
+        are identity + description (``schema_omitted=true``). Pass
+        ``include_schemas=true`` for every schema, or ``include_schema_for`` with
+        ``server:tool`` / ``tool_id`` / ``tool_name`` tokens. Use
+        ``get_tool_schema`` for a single weak hit without re-searching.
+        """
         from mcp_router import http_server as hs
 
         state = hs.state
@@ -129,6 +139,14 @@ def register_mcp_tools(mcp: FastMCP) -> None:
             latency_ms=latency_ms,
             shadow_results=shadow_grouped,
         )
+        # Gate schemas after strict filter (read-only needs full schemas to decide).
+        grouped = apply_schema_on_demand(
+            grouped,
+            ratio=state.settings.search_strong_match_ratio,
+            include_schemas=include_schemas,
+            include_schema_for=include_schema_for,
+            enabled=state.settings.search_schema_on_demand,
+        )
         confidence, confidence_hint = assess_search_confidence(grouped)
         router = await hs._router_status_snapshot()
         index_status_name = router["index_status"]["status"]
@@ -163,6 +181,34 @@ def register_mcp_tools(mcp: FastMCP) -> None:
             payload["next_action"] = rem["next_action"]
 
         return json.dumps(payload, ensure_ascii=False, indent=2)
+
+    @mcp.tool()
+    async def get_tool_schema(server_name: str, tool_name: str) -> str:
+        """Fetch full tool_schema for one indexed tool (schema-on-demand lookup)."""
+        from mcp_router import http_server as hs
+
+        schema = hs._lookup_tool_schema(server_name, tool_name)
+        if schema is None:
+            return json.dumps(
+                remediation_error(
+                    "tool_not_found",
+                    error=f"No indexed schema for {server_name}:{tool_name}",
+                    server_name=server_name,
+                    tool_name=tool_name,
+                ),
+                ensure_ascii=False,
+            )
+        return json.dumps(
+            {
+                "ok": True,
+                "server_name": server_name,
+                "tool_name": tool_name,
+                "tool_id": f"{server_name}:{tool_name}",
+                "tool_schema": schema,
+            },
+            ensure_ascii=False,
+            indent=2,
+        )
 
     @mcp.tool()
     async def call_server_tool(

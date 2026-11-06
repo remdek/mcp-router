@@ -33,8 +33,8 @@ clearly *reduces* total tokens for the same recall quality.
 
 | Layer | What the model sees today | Budget rule |
 |-------|---------------------------|-------------|
-| **A. Tool surface** | Fixed small set: `search_tools`, `search_servers`, `call_server_tool`, `get_router_status`, `feedback`, `review` (+ their input schemas) | Keep thin. Do not promote downstream tools into this surface. Do not add deferred/host-native names (`mcp__…`) into the model context. |
-| **B. Search hits** | Per hit: `tool_id`, `server_name`, `tool_name`, `description`, `score`, **full `tool_schema`**; plus envelope `ok`, `query`, `search_id`, `confidence`, `confidence_hint`, compact `router` status | Prefer identity + short description for weak hits. Full schema is expensive; treat schema-on-demand / strong-match floor as the target direction (P0). Default `limit` and `max_per_server` stay bounded. |
+| **A. Tool surface** | Fixed small set: `search_tools`, `search_servers`, `call_server_tool`, `get_tool_schema`, `get_router_status`, `feedback`, `review` (+ their input schemas) | Keep thin. `get_tool_schema` is the schema-on-demand second lookup (WOR-1537) — do not promote downstream tools into this surface. Do not add deferred/host-native names (`mcp__…`) into the model context. |
+| **B. Search hits** | Per hit: `tool_id`, `server_name`, `tool_name`, `description`, `score`; **full `tool_schema` only on strong matches** (`schema_omitted` otherwise); plus envelope `ok`, `query`, `search_id`, `confidence`, `confidence_hint`, compact `router` status | Schema-on-demand shipped (WOR-1537): floor = `top_score * SEARCH_STRONG_MATCH_RATIO` (default 0.85; always include top-1). Weak hits are identity + description; fetch schema via `include_schema_for` / `get_tool_schema`. Default `limit` and `max_per_server` stay bounded. |
 | **C. Call result** | Faithful relay of downstream `tools/call` result (normalized JSON) + `call_id` / typed remediation on failure | Do not invent a second API. Truncate + side-channel for huge payloads is the target direction (output guard, P0). Optional field `extract` is P1+, not default. |
 
 Telemetry (`search_id` / `call_id`), quarantine, and remediation fields
@@ -62,7 +62,7 @@ path when they are short and actionable — they replace retries and guesswork.
 
 | Priority | Pattern | Intent for the budget |
 |----------|---------|------------------------|
-| P0 | **Schema-on-demand** (+ strong-match floor) | Omit or shrink `tool_schema` on weak search hits |
+| P0 | **Schema-on-demand** (+ strong-match floor) | **Shipped (WOR-1537)** — omit `tool_schema` on weak search hits |
 | P0 | **Output guard** | Truncate large call results; point to full artifact/path |
 | P1 | **Failure backoff with reason** | Short “failed Ns ago: reason” beside quarantine |
 | P1 | Optional **`extract`** on call | Return selected fields; full body in side channel |

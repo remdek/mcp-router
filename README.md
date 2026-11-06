@@ -150,7 +150,8 @@ Short agent guide for this surface: [`SKILL.md`](SKILL.md) (search → call, whe
 |------|-------------|
 | `get_router_status` | Health, index/reindex state, embedding mode, downstream probes, reconnect hints |
 | `search_servers` | Discover registered downstream servers (not tools); returns `search_id` |
-| `search_tools` | Hybrid search with confidence; results grouped for ranking convenience; returns `search_id` |
+| `search_tools` | Hybrid search with confidence; strong hits include `tool_schema`, weak hits set `schema_omitted`; returns `search_id` |
+| `get_tool_schema` | Full schema for one indexed `server_name` + `tool_name` (schema-on-demand) |
 | `call_server_tool` | Proxy call with normalized result and typed remediation errors; returns `call_id` |
 | `review` | Rate a prior `call_id` or `search_id` (`useful` / `partly` / `not_useful` / `not_sure`) |
 | `feedback` | Local quality/friction/other report; optional `call_ids` / `search_ids` |

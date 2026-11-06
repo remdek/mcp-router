@@ -19,9 +19,12 @@ Do **not** invent tool names — always search (or verify schema) first.
 
 ## Core loop
 
-1. `search_tools(query, …)` → pick `server_name` + `tool_name`; read `tool_schema` / input fields.
-2. `call_server_tool(server_name, tool_name, arguments)`.
-3. If results look empty or degraded → `get_router_status`; to list servers → `search_servers`.
+1. `search_tools(query, …)` → pick `server_name` + `tool_name`. Strong hits include
+   `tool_schema`; weak hits set `schema_omitted=true` (identity + description only).
+2. If the chosen hit omitted the schema → `get_tool_schema(server_name, tool_name)`
+   (or re-search with `include_schema_for=["server:tool"]` / `include_schemas=true`).
+3. `call_server_tool(server_name, tool_name, arguments)`.
+4. If results look empty or degraded → `get_router_status`; to list servers → `search_servers`.
 
 Keep `search_id` / `call_id` when you may `review` or `feedback` afterward.
 
@@ -29,7 +32,8 @@ Keep `search_id` / `call_id` when you may `review` or `feedback` afterward.
 
 | Tool | Call when |
 |------|-----------|
-| `search_tools` | Need a capability; query in EN or RU; optional `limit`, weights, `max_per_server` |
+| `search_tools` | Need a capability; query in EN or RU; optional `limit`, weights, `max_per_server`, `include_schemas`, `include_schema_for` |
+| `get_tool_schema` | Need full input schema for a weak search hit before calling |
 | `call_server_tool` | After you know exact `server_name` + `tool_name` + args |
 | `search_servers` | Discover registered servers (not tools); quarantine marks `healthy=false` |
 | `get_router_status` | Empty/odd search, index not ready, reconnect / embedding / probe questions |
@@ -44,7 +48,8 @@ Search then call:
 
 ```text
 search_tools(query="web search current events", limit=5)
-→ pick searxng:searxng_web_search (verify schema)
+→ pick searxng:searxng_web_search
+→ if schema_omitted: get_tool_schema("searxng", "searxng_web_search")
 
 call_server_tool(
   server_name="searxng",

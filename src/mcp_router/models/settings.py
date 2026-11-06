@@ -51,6 +51,10 @@ class Settings(BaseSettings):
     alias_boost: float = Field(default=1.35, gt=0)
     shadow_ranker: bool = False
     search_outcome_window_sec: int = Field(default=600, ge=1)
+    # WOR-1537: omit tool_schema on weak search hits (rollback: false).
+    search_schema_on_demand: bool = True
+    # Keep schema when score >= top_score * ratio (RRF-relative; not pi's top/4).
+    search_strong_match_ratio: float = Field(default=0.85, gt=0, le=1.0)
 
     # Strict / dual MCP surface (default /mcp unchanged; /mcp/v2 enforces policy)
     strict_mcp_enabled: bool = True

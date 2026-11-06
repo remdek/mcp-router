@@ -5,8 +5,10 @@ sources:
   - src/mcp_router/index/search.py
   - src/mcp_router/services/aliases.py
   - src/mcp_router/services/intent_mapping.py
+  - src/mcp_router/services/schema_budget.py
   - src/mcp_router/services/search_telemetry.py
   - src/mcp_router/services/server_search.py
+  - src/mcp_router/http_mcp_tools.py
   - src/mcp_router/http_server.py
 related:
   - index.md
@@ -16,8 +18,8 @@ related:
 # Hybrid search
 
 `ToolSearch` (`index/search.py`) is the ranking brain behind MCP tool
-`search_tools`. The HTTP adapter in `http_server.py` only wires settings,
-logs telemetry, and shapes the JSON response.
+`search_tools`. The HTTP adapter in `http_server.py` / `http_mcp_tools.py`
+wires settings, logs telemetry, and shapes the JSON response.
 
 ## Pipeline
 
@@ -28,6 +30,15 @@ logs telemetry, and shapes the JSON response.
    weighted merge when `SHADOW_RANKER=true` — logged only; agents still see RRF.
 5. Boosts: server name in query (`server_boost`), alias hit (`alias_boost`).
 6. If both channels are empty → keyword fallback over live `tools/list` cache.
+7. **Schema-on-demand** (WOR-1537): after ranking / quarantine / strict filter,
+   `apply_schema_on_demand` (`services/schema_budget.py`) keeps full
+   `tool_schema` only for strong hits (`score >= top_score *
+   SEARCH_STRONG_MATCH_RATIO`, default `0.85`, and always the top-1 row).
+   Weak hits keep `tool_id` / `server_name` / `tool_name` / `description` /
+   `score` and set `schema_omitted=true`. Opt-in: `include_schemas=true` or
+   `include_schema_for=["server:tool", …]`. Second lookup:
+   `get_tool_schema(server_name, tool_name)`. Rollback:
+   `SEARCH_SCHEMA_ON_DEMAND=false`.
 
 `search_servers` is a thinner path (`services/server_search.py`): registry /
 index lookup for downstream **servers**, not tools.
