@@ -121,6 +121,125 @@ async def test_http_transport_call_tool() -> None:
         await transport.close()
 
 
+@respx.mock
+async def test_http_transport_reinitializes_after_stale_session_404() -> None:
+    """Downstream restart invalidates MCP-Session-Id → 404; recover once (WOR-1549)."""
+    state = {"tools_calls": 0, "inits": 0}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        body = json.loads(request.content)
+        method = body.get("method")
+        req_id = body.get("id")
+        session = request.headers.get("mcp-session-id")
+
+        if method == "initialize":
+            state["inits"] += 1
+            sid = f"sess-{state['inits']}"
+            return httpx.Response(
+                200,
+                json=_jsonrpc_result(
+                    req_id,
+                    {
+                        "protocolVersion": "2024-11-05",
+                        "capabilities": {},
+                        "serverInfo": {"name": "mock-http"},
+                    },
+                ),
+                headers={"MCP-Session-Id": sid},
+            )
+        if method == "notifications/initialized":
+            return httpx.Response(200, json={})
+        if method == "tools/call":
+            state["tools_calls"] += 1
+            # First call after init uses sess-1; simulate server restart → unknown session.
+            if session == "sess-1" and state["tools_calls"] == 1:
+                return httpx.Response(404, text="Session not found")
+            assert session == "sess-2"
+            return httpx.Response(
+                200,
+                json=_jsonrpc_result(req_id, {"content": [{"type": "text", "text": "recovered"}]}),
+            )
+        return httpx.Response(400, json={"error": "unknown method"})
+
+    respx.post(HTTP_URL).mock(side_effect=handler)
+    transport = HttpTransport({"url": HTTP_URL})
+    await transport.connect()
+    try:
+        result = await transport.send_request(
+            {
+                "jsonrpc": "2.0",
+                "id": 2,
+                "method": "tools/call",
+                "params": {"name": "search", "arguments": {}},
+            }
+        )
+        assert result["content"][0]["text"] == "recovered"
+        assert state["inits"] == 2
+        assert state["tools_calls"] == 2
+    finally:
+        await transport.close()
+
+
+@respx.mock
+async def test_http_transport_reinitializes_after_incomplete_chunked_read() -> None:
+    """Peer closed mid-body during downstream recreate → one reconnect retry."""
+    state = {"tools_calls": 0, "inits": 0}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        body = json.loads(request.content)
+        method = body.get("method")
+        req_id = body.get("id")
+
+        if method == "initialize":
+            state["inits"] += 1
+            return httpx.Response(
+                200,
+                json=_jsonrpc_result(
+                    req_id,
+                    {
+                        "protocolVersion": "2024-11-05",
+                        "capabilities": {},
+                        "serverInfo": {"name": "mock-http"},
+                    },
+                ),
+                headers={"MCP-Session-Id": f"sess-{state['inits']}"},
+            )
+        if method == "notifications/initialized":
+            return httpx.Response(200, json={})
+        if method == "tools/call":
+            state["tools_calls"] += 1
+            if state["tools_calls"] == 1:
+                raise httpx.RemoteProtocolError(
+                    "peer closed connection without sending complete message body "
+                    "(incomplete chunked read)"
+                )
+            return httpx.Response(
+                200,
+                json=_jsonrpc_result(
+                    req_id, {"content": [{"type": "text", "text": "after-reconnect"}]}
+                ),
+            )
+        return httpx.Response(400, json={"error": "unknown method"})
+
+    respx.post(HTTP_URL).mock(side_effect=handler)
+    transport = HttpTransport({"url": HTTP_URL})
+    await transport.connect()
+    try:
+        result = await transport.send_request(
+            {
+                "jsonrpc": "2.0",
+                "id": 2,
+                "method": "tools/call",
+                "params": {"name": "search", "arguments": {}},
+            }
+        )
+        assert result["content"][0]["text"] == "after-reconnect"
+        assert state["inits"] == 2
+        assert state["tools_calls"] == 2
+    finally:
+        await transport.close()
+
+
 async def test_sse_transport_connect_and_direct_response() -> None:
     transport = SseTransport({"url": SSE_URL})
 

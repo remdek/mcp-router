@@ -27,14 +27,25 @@ class HttpTransport(BaseTransport):
             raise ValueError("Use SseTransport for /sse URLs")
 
     async def connect(self) -> None:
-        if self._connected:
+        if self._connected and self._client is not None:
             return
+        if self._client is not None:
+            await self._client.aclose()
+            self._client = None
         self._client = httpx.AsyncClient(
             timeout=httpx.Timeout(120.0, connect=15.0), follow_redirects=True
         )
         self._connected = True
 
     async def send_request(self, request: dict[str, Any], **kwargs: Any) -> dict[str, Any]:
+        return await self._send_request(request, allow_session_retry=True)
+
+    async def _send_request(
+        self,
+        request: dict[str, Any],
+        *,
+        allow_session_retry: bool,
+    ) -> dict[str, Any]:
         if not self._connected or not self._client:
             await self.connect()
 
@@ -44,7 +55,34 @@ class HttpTransport(BaseTransport):
 
         headers = self._build_headers()
         assert self._client and self.url
-        response = await self._client.post(self.url, json=request, headers=headers)
+        try:
+            response = await self._client.post(self.url, json=request, headers=headers)
+        except httpx.TransportError as exc:
+            if allow_session_retry and method not in {"initialize", "notifications/initialized"}:
+                logger.warning(
+                    "HTTP MCP transport error on %s (%s); reinitializing session once",
+                    self.url,
+                    exc,
+                )
+                await self._reset_session_state()
+                await self.connect()
+                await self._initialize_session()
+                return await self._send_request(request, allow_session_retry=False)
+            raise
+
+        if (
+            response.status_code == 404
+            and allow_session_retry
+            and method not in {"initialize", "notifications/initialized"}
+        ):
+            logger.warning(
+                "HTTP MCP session rejected (404) at %s; reinitializing session once",
+                self.url,
+            )
+            await self._reset_session_state()
+            await self.connect()
+            await self._initialize_session()
+            return await self._send_request(request, allow_session_retry=False)
 
         if response.status_code == 401:
             raise RuntimeError(f"Unauthorized for {self.url}: check API key headers")
@@ -59,6 +97,15 @@ class HttpTransport(BaseTransport):
         if "result" not in data:
             raise RuntimeError(f"Invalid JSON-RPC response: {data}")
         return cast(dict[str, Any], data["result"])
+
+    async def _reset_session_state(self) -> None:
+        """Drop cached MCP session so the next call re-runs initialize."""
+        self._session_id = None
+        self._initialized = False
+        if self._client is not None:
+            await self._client.aclose()
+            self._client = None
+        self._connected = False
 
     async def _initialize_session(self) -> None:
         init_request = {
