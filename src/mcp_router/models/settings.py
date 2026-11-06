@@ -38,6 +38,11 @@ class Settings(BaseSettings):
     # Day-path: hide/block known-unhealthy servers (WOR-1092). Rollback: false.
     health_quarantine_enabled: bool = True
 
+    # WOR-1539: short agent-visible backoff after connect/call failure (beside quarantine).
+    failure_backoff_enabled: bool = True
+    failure_backoff_sec: float = Field(default=60.0, ge=1.0)
+    failure_backoff_reason_chars: int = Field(default=300, ge=40)
+
     mcp_router_host: str = "0.0.0.0"
     mcp_router_port: int = 8000
     router_api_key: str = ""

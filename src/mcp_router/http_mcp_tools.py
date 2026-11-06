@@ -9,6 +9,7 @@ from typing import Any
 
 from mcp.server.fastmcp import FastMCP
 
+from mcp_router.services import failure_backoff as failure_backoff_svc
 from mcp_router.services.feedback import (
     FeedbackValidationError,
     ReviewTargetNotFound,
@@ -67,6 +68,7 @@ def register_mcp_tools(mcp: FastMCP) -> None:
                 failed_server_names(state.health_prober),
                 errors=probe_errors(state.health_prober),
             )
+        results = failure_backoff_svc.annotate_server_results(results, state.failure_backoff)
         latency_ms = (time.perf_counter() - started) * 1000.0
         search_id = state.search_telemetry.log_search(
             kind="servers",
@@ -126,6 +128,11 @@ def register_mcp_tools(mcp: FastMCP) -> None:
             results = filter_tool_results(results, quarantine)
             if shadow is not None:
                 shadow = filter_tool_results(shadow, quarantine)
+        backoff = state.failure_backoff.active_servers()
+        if backoff:
+            results = failure_backoff_svc.filter_tool_results(results, backoff)
+            if shadow is not None:
+                shadow = failure_backoff_svc.filter_tool_results(shadow, backoff)
         grouped = group_results_by_server(results, max_per_server=per_server)[:limit]
         if get_surface() == "strict":
             grouped = state.strict_policy.filter_tool_results(grouped)[:limit]
@@ -160,6 +167,7 @@ def register_mcp_tools(mcp: FastMCP) -> None:
         if router["reindex_in_progress"]:
             confidence_hint = f"{confidence_hint} Index rebuild in progress — results may be stale."
 
+        fb_snap = state.failure_backoff.snapshot()
         payload: dict[str, Any] = {
             "ok": True,
             "query": query,
@@ -173,6 +181,15 @@ def register_mcp_tools(mcp: FastMCP) -> None:
                 "tool_count": router["tool_count"],
             },
         }
+        if fb_snap.get("active"):
+            # Short agent-visible hint (names + message); full detail in get_router_status.
+            payload["router"]["failure_backoff"] = {
+                "active": fb_snap["active"],
+                "servers": {
+                    name: info.get("message")
+                    for name, info in (fb_snap.get("servers") or {}).items()
+                },
+            }
         if index_degraded:
             rem = remediation_error(
                 "index_degraded",
@@ -255,6 +272,21 @@ def register_mcp_tools(mcp: FastMCP) -> None:
                 },
                 ensure_ascii=False,
             )
+        # Fast layer: recent call/connect failure (agent-visible reason).
+        backoff_msg = state.failure_backoff.describe(server_name)
+        if backoff_msg is not None:
+            return json.dumps(
+                {
+                    **remediation_error(
+                        "failure_backoff",
+                        error=f"Server in failure backoff: {server_name}: {backoff_msg}",
+                        server_name=server_name,
+                        tool_name=tool_name,
+                    ),
+                    "call_id": call_id,
+                },
+                ensure_ascii=False,
+            )
         quarantine = failed_server_names(state.health_prober)
         if is_server_quarantined(
             server_name,
@@ -277,6 +309,9 @@ def register_mcp_tools(mcp: FastMCP) -> None:
         try:
             raw = await state.server_manager.call_tool(server_name, tool_name, args)
             normalized = normalize_tool_result(raw)
+            # Successful connect/call clears the short backoff window.
+            if not normalized["is_error"]:
+                state.failure_backoff.clear(server_name)
             payload: dict[str, Any] = {
                 "ok": not normalized["is_error"],
                 "call_id": call_id,
@@ -301,6 +336,7 @@ def register_mcp_tools(mcp: FastMCP) -> None:
             return json.dumps(payload, ensure_ascii=False, default=str)
         except Exception as exc:
             kind = classify_failure_kind(exc)
+            state.failure_backoff.record(server_name, str(exc), failure_kind=kind)
             return json.dumps(
                 {
                     **remediation_error(

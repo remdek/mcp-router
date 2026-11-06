@@ -8,6 +8,7 @@ sources:
   - src/mcp_router/services/schema_budget.py
   - src/mcp_router/services/search_telemetry.py
   - src/mcp_router/services/server_search.py
+  - src/mcp_router/services/failure_backoff.py
   - src/mcp_router/http_mcp_tools.py
   - src/mcp_router/http_server.py
 related:
@@ -54,6 +55,23 @@ When `HEALTH_QUARANTINE_ENABLED=true` (default), the last
 
 Unknown / not-yet-probed servers are not quarantined. Rollback:
 `HEALTH_QUARANTINE_ENABLED=false` (probes and `/status` stay unchanged).
+
+## Failure backoff (WOR-1539)
+
+Fast layer **beside** quarantine (not a duplicate). After a failed
+`call_server_tool` connect/call, `FailureBackoffTracker` keeps a short window
+(default **60s**, `FAILURE_BACKOFF_SEC`) with a sanitized truncated reason:
+
+- **drops** that server's tools from `search_tools` while the window is active
+- **marks** `search_servers` with `failure_backoff="failed Ns ago: …"`,
+  `day_path=backoff` (quarantine `skip` stays stronger when both apply)
+- **blocks** `call_server_tool` with `failure_kind=failure_backoff` and the same
+  `failed Ns ago` message (plus `next_action`)
+- **surfaces** active servers on compact `search_tools.router.failure_backoff`
+  and full `get_router_status.failure_backoff`
+
+Successful non-error calls clear the window early. Rollback:
+`FAILURE_BACKOFF_ENABLED=false`.
 
 ## Telemetry
 

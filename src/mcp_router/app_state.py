@@ -12,6 +12,7 @@ from mcp_router.index.search import ToolSearch
 from mcp_router.models.tools import IndexStatus
 from mcp_router.services.aliases import AliasCatalog, load_aliases
 from mcp_router.services.cache_service import CacheService
+from mcp_router.services.failure_backoff import FailureBackoffTracker
 from mcp_router.services.feedback import FeedbackService
 from mcp_router.services.health_probe import DownstreamHealthProber
 from mcp_router.services.search_telemetry import SearchTelemetry
@@ -32,6 +33,7 @@ class AppState:
     search_telemetry: SearchTelemetry
     feedback_service: FeedbackService
     health_prober: DownstreamHealthProber
+    failure_backoff: FailureBackoffTracker
     strict_policy: StrictPolicy
     embedding_client: EmbeddingProvider | None = None
     tool_search: ToolSearch | None = None
@@ -59,6 +61,11 @@ def build_app_state(settings: Settings | None = None) -> AppState:
             timeout_sec=cfg.health_probe_timeout_sec,
             concurrency=cfg.health_probe_concurrency,
             enabled=cfg.health_probe_enabled,
+        ),
+        failure_backoff=FailureBackoffTracker(
+            backoff_sec=cfg.failure_backoff_sec,
+            agent_reason_chars=cfg.failure_backoff_reason_chars,
+            enabled=cfg.failure_backoff_enabled,
         ),
         strict_policy=build_strict_policy(
             allowlist=cfg.strict_allowlist,

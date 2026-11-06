@@ -127,6 +127,7 @@ async def _router_status_snapshot(app_state: AppState | None = None) -> dict[str
         "embedding_ok": emb_ok,
         "registered_servers": len(s.server_manager.list_servers()),
         "downstream_health": s.health_prober.snapshot(),
+        "failure_backoff": s.failure_backoff.snapshot(),
         "shadow_ranker": s.settings.shadow_ranker,
         "search_quality": quality,
         "mcp_surfaces": {

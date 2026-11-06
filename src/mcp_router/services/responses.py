@@ -15,6 +15,7 @@ FailureKind = Literal[
     "timeout",
     "strict_denied",
     "server_unhealthy",
+    "failure_backoff",
 ]
 
 _SECRET_PATTERNS: tuple[re.Pattern[str], ...] = (
@@ -71,6 +72,11 @@ _FAILURE_HINTS: dict[FailureKind, tuple[str, str]] = {
         "Pick a healthy server via search_tools, or fix/re-enable the downstream; "
         "rollback quarantine with HEALTH_QUARANTINE_ENABLED=false.",
     ),
+    "failure_backoff": (
+        "A recent connect/call to this server failed; a short backoff window is active. "
+        "See the 'failed Ns ago: reason' message and get_router_status.failure_backoff.",
+        "Wait until the backoff window ends (or pick another server), then retry the call.",
+    ),
 }
 
 
@@ -111,7 +117,13 @@ def classify_failure_kind(exc: Exception) -> FailureKind:
 
 
 def failure_to_error_source(kind: FailureKind) -> ErrorSource:
-    if kind in ("tool_not_found", "index_degraded", "strict_denied", "server_unhealthy"):
+    if kind in (
+        "tool_not_found",
+        "index_degraded",
+        "strict_denied",
+        "server_unhealthy",
+        "failure_backoff",
+    ):
         return "router"
     return "downstream"
 
