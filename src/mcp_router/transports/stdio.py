@@ -65,6 +65,18 @@ async def _close_stdio_process(
         reap_untracked_zombies()
 
 
+# MCP tools/list frames (e.g. REA ~200 tools) exceed asyncio's default 64KiB
+# StreamReader limit and raise LimitOverrunError ("Separator is not found…").
+_STDIO_STREAM_LIMIT = 16 * 1024 * 1024
+
+
+def _raise_stdio_stream_limits(process: asyncio.subprocess.Process) -> None:
+    """Allow large newline-delimited JSON-RPC frames on stdout/stderr pipes."""
+    for stream in (process.stdout, process.stderr):
+        if stream is not None and hasattr(stream, "_limit"):
+            stream._limit = _STDIO_STREAM_LIMIT
+
+
 async def _spawn_stdio_process(
     command_path: str,
     args: list[str],
@@ -82,6 +94,7 @@ async def _spawn_stdio_process(
         cwd=cwd,
         start_new_session=True,
     )
+    _raise_stdio_stream_limits(process)
     if process.pid is not None:
         track_child_pid(process.pid)
     return process
