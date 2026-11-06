@@ -113,8 +113,9 @@ Import direction is enforced by import-linter (`make lint-imports`). Details: `d
 4. Merge with **RRF** (agent-visible). Optional `SHADOW_RANKER` logs weighted merge only.
 5. Apply health quarantine / strict filter; if both channels empty → keyword fallback on live `tools/list` cache.
 6. Client calls `call_server_tool(server_name, tool_name, arguments)` → `ServerManager` proxies unchanged args.
+7. Large call bodies are truncated by the output guard (ADR Layer C); full JSON spills to `data/call_artifacts/`.
 
-See `docs/context/search.md`.
+See `docs/context/search.md` and `docs/context/proxy-call.md`.
 
 ## Indexing
 

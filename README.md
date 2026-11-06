@@ -100,6 +100,10 @@ Change the published port with `HOST_PORT` in `.env` (mapping is `${HOST_PORT}:$
 | `REGISTRY_POLL_INTERVAL_SEC` | `2.0` | Hot-reload poll interval (seconds) |
 | `HEALTH_PROBE_ENABLED` | `true` | Periodic downstream `tools/list` probes |
 | `HEALTH_QUARANTINE_ENABLED` | `true` | Mark/skip failed servers; block their calls |
+| `OUTPUT_GUARD_ENABLED` | `true` | Truncate huge `call_server_tool` results (WOR-1538) |
+| `OUTPUT_GUARD_MAX_BYTES` | `51200` | Max UTF-8 bytes returned inline (50 KiB) |
+| `OUTPUT_GUARD_MAX_LINES` | `2000` | Max lines returned inline |
+| `OUTPUT_GUARD_DIR` | *(next to index)* | Full-result spill dir (`data/call_artifacts`) |
 
 ## Security (public host)
 
@@ -152,7 +156,7 @@ Short agent guide for this surface: [`SKILL.md`](SKILL.md) (search → call, whe
 | `search_servers` | Discover registered downstream servers (not tools); returns `search_id` |
 | `search_tools` | Hybrid search with confidence; strong hits include `tool_schema`, weak hits set `schema_omitted`; returns `search_id` |
 | `get_tool_schema` | Full schema for one indexed `server_name` + `tool_name` (schema-on-demand) |
-| `call_server_tool` | Proxy call with normalized result and typed remediation errors; returns `call_id` |
+| `call_server_tool` | Proxy call with normalized result and typed remediation errors; returns `call_id`; oversized results truncated (`output_guard` + artifact path) |
 | `review` | Rate a prior `call_id` or `search_id` (`useful` / `partly` / `not_useful` / `not_sure`) |
 | `feedback` | Local quality/friction/other report; optional `call_ids` / `search_ids` |
 

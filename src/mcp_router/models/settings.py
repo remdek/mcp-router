@@ -56,6 +56,13 @@ class Settings(BaseSettings):
     # Keep schema when score >= top_score * ratio (RRF-relative; not pi's top/4).
     search_strong_match_ratio: float = Field(default=0.85, gt=0, le=1.0)
 
+    # WOR-1538: truncate huge call_server_tool results; spill full JSON to disk.
+    output_guard_enabled: bool = True
+    output_guard_max_bytes: int = Field(default=50 * 1024, ge=1)  # 50 KiB
+    output_guard_max_lines: int = Field(default=2000, ge=1)
+    # Empty → data/call_artifacts next to INDEX_DB_PATH.
+    output_guard_dir: str = ""
+
     # Strict / dual MCP surface (default /mcp unchanged; /mcp/v2 enforces policy)
     strict_mcp_enabled: bool = True
     strict_allowlist: str = ""

@@ -100,6 +100,10 @@ curl "http://localhost:${HOST_PORT:-8000}/health"
 | `REGISTRY_POLL_INTERVAL_SEC` | `2.0` | Интервал hot-reload (секунды) |
 | `HEALTH_PROBE_ENABLED` | `true` | Периодические `tools/list` к downstream |
 | `HEALTH_QUARANTINE_ENABLED` | `true` | Помечать/пропускать упавшие серверы; блокировать их вызовы |
+| `OUTPUT_GUARD_ENABLED` | `true` | Обрезать огромные ответы `call_server_tool` (WOR-1538) |
+| `OUTPUT_GUARD_MAX_BYTES` | `51200` | Макс. UTF-8 байт в ответе агенту (50 KiB) |
+| `OUTPUT_GUARD_MAX_LINES` | `2000` | Макс. число строк в ответе агенту |
+| `OUTPUT_GUARD_DIR` | *(рядом с индексом)* | Каталог полного результата (`data/call_artifacts`) |
 
 ## Безопасность (публичный хост)
 
@@ -152,7 +156,7 @@ curl "http://localhost:${HOST_PORT:-8000}/health"
 | `search_servers` | Поиск зарегистрированных downstream-серверов (не инструментов); возвращает `search_id` |
 | `search_tools` | Гибридный поиск с confidence; сильным хитам — `tool_schema`, слабым — `schema_omitted`; возвращает `search_id` |
 | `get_tool_schema` | Полная schema для одного `server_name` + `tool_name` (schema-on-demand) |
-| `call_server_tool` | Прокси-вызов с нормализованным результатом и typed remediation; возвращает `call_id` |
+| `call_server_tool` | Прокси-вызов с нормализованным результатом и typed remediation; возвращает `call_id`; огромные ответы обрезаются (`output_guard` + путь к артефакту) |
 | `review` | Оценка прошлого `call_id` или `search_id` (`useful` / `partly` / `not_useful` / `not_sure`) |
 | `feedback` | Локальный отчёт quality/friction/other; опционально `call_ids` / `search_ids` |
 

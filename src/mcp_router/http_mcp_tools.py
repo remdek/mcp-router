@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import time
+from pathlib import Path
 from typing import Any
 
 from mcp.server.fastmcp import FastMCP
@@ -25,6 +26,7 @@ from mcp_router.services.health_quarantine import (
     is_server_quarantined,
     probe_errors,
 )
+from mcp_router.services.output_guard import apply_output_guard, default_artifacts_dir
 from mcp_router.services.responses import (
     assess_search_confidence,
     classify_failure_kind,
@@ -275,18 +277,28 @@ def register_mcp_tools(mcp: FastMCP) -> None:
         try:
             raw = await state.server_manager.call_tool(server_name, tool_name, args)
             normalized = normalize_tool_result(raw)
-            return json.dumps(
-                {
-                    "ok": not normalized["is_error"],
-                    "call_id": call_id,
-                    "server_name": server_name,
-                    "tool_name": tool_name,
-                    "result": normalized,
-                    "error_source": "tool" if normalized["is_error"] else None,
-                },
-                ensure_ascii=False,
-                default=str,
+            payload: dict[str, Any] = {
+                "ok": not normalized["is_error"],
+                "call_id": call_id,
+                "server_name": server_name,
+                "tool_name": tool_name,
+                "result": normalized,
+                "error_source": "tool" if normalized["is_error"] else None,
+            }
+            artifacts = (
+                Path(state.settings.output_guard_dir).expanduser()
+                if state.settings.output_guard_dir.strip()
+                else default_artifacts_dir(state.settings.index_db_path)
             )
+            payload = apply_output_guard(
+                payload,
+                enabled=state.settings.output_guard_enabled,
+                max_bytes=state.settings.output_guard_max_bytes,
+                max_lines=state.settings.output_guard_max_lines,
+                artifacts_dir=artifacts,
+                call_id=call_id or "unknown",
+            )
+            return json.dumps(payload, ensure_ascii=False, default=str)
         except Exception as exc:
             kind = classify_failure_kind(exc)
             return json.dumps(

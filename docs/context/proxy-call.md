@@ -3,8 +3,10 @@ title: Proxy call (faithful relay)
 status: shipped
 sources:
   - src/mcp_router/http_server.py
+  - src/mcp_router/http_mcp_tools.py
   - src/mcp_router/services/server_manager.py
   - src/mcp_router/services/responses.py
+  - src/mcp_router/services/output_guard.py
   - src/mcp_router/services/strict_policy.py
   - src/mcp_router/services/health_probe.py
   - src/mcp_router/services/feedback.py
@@ -21,9 +23,10 @@ related:
 
 # Proxy call
 
-`call_server_tool` in `http_server.py` is a thin adapter: strict allow-list
-check → registry presence → `ServerManager.call_tool` → normalize result or
-emit a typed remediation error. It does **not** re-model downstream APIs.
+`call_server_tool` in `http_mcp_tools.py` is a thin adapter: strict allow-list
+check → registry presence → `ServerManager.call_tool` → normalize result →
+optional **output guard** or emit a typed remediation error. It does **not**
+re-model downstream APIs.
 
 ## Faithful relay
 
@@ -35,6 +38,24 @@ manager passes tool name + arguments through unchanged; only env injection
 `services/responses.py` normalizes MCP tool results into a stable JSON shape
 and classifies failures (`failure_kind`, `reconnect_hint`, `next_action`)
 without leaking secrets or raw headers.
+
+## Output guard (context budget Layer C)
+
+Large successful (and tool-level error) results are capped so one huge
+downstream reply cannot inflate the agent context:
+
+1. Measure extracted `result.text` (or serialized `result`) against
+   `OUTPUT_GUARD_MAX_BYTES` (default **50 KiB**) and
+   `OUTPUT_GUARD_MAX_LINES` (default **2000**).
+2. If over limit: write the **full** call JSON under
+   `data/call_artifacts/{call_id}.json` (or `OUTPUT_GUARD_DIR`), replace
+   `result` with a head preview + truncation notice, and set
+   `output_guard` (`truncated`, `full_output_path`, `artifact_id`, sizes).
+3. Typed remediation envelopes (`failure_kind`, …) are **not** truncated —
+   they stay short and actionable.
+4. Rollback: `OUTPUT_GUARD_ENABLED=false`.
+
+See ADR 0001 and `services/output_guard.py`.
 
 ## Strict surface
 
