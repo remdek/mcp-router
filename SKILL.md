@@ -24,7 +24,10 @@ Do **not** invent tool names — always search (or verify schema) first.
 2. If the chosen hit omitted the schema → `get_tool_schema(server_name, tool_name)`
    (or re-search with `include_schema_for=["server:tool"]` / `include_schemas=true`).
 3. `call_server_tool(server_name, tool_name, arguments)`.
-4. If results look empty or degraded → `get_router_status`; to list servers → `search_servers`.
+4. If the call returns `output_guard.truncated=true`, use `full_output_path` /
+   `artifact_id` (file under the router host’s `data/call_artifacts/`) for the
+   full body — do not ask the model to re-fetch the whole payload inline.
+5. If results look empty or degraded → `get_router_status`; to list servers → `search_servers`.
 
 Keep `search_id` / `call_id` when you may `review` or `feedback` afterward.
 
@@ -34,7 +37,7 @@ Keep `search_id` / `call_id` when you may `review` or `feedback` afterward.
 |------|-----------|
 | `search_tools` | Need a capability; query in EN or RU; optional `limit`, weights, `max_per_server`, `include_schemas`, `include_schema_for` |
 | `get_tool_schema` | Need full input schema for a weak search hit before calling |
-| `call_server_tool` | After you know exact `server_name` + `tool_name` + args |
+| `call_server_tool` | After you know exact `server_name` + `tool_name` + args; huge results may be truncated (`output_guard`) |
 | `search_servers` | Discover registered servers (not tools); quarantine marks `healthy=false` |
 | `get_router_status` | Empty/odd search, index not ready, reconnect / embedding / probe questions |
 | `review` | Rate one prior `call_id` **or** `search_id` (`useful` / `partly` / `not_useful` / `not_sure`) |
