@@ -23,6 +23,10 @@ _TOOLS_LIST_REQUEST = {"jsonrpc": "2.0", "id": 1, "method": "tools/list", "param
 # Browser MCP needs one Chromium/session across tools/call (WOR-874).
 _DEFAULT_PERSISTENT_STDIO = frozenset({"playwright", "chrome-devtools"})
 
+# Product lifecycle defaults (WOR-1541 / pi-mcp pattern). Gateway never connects
+# at registry load — keep-alive means "stay resident after first use".
+_DEFAULT_LAZY_IDLE_SEC = 600.0
+
 
 class ServerManager:
     """Manages downstream MCP server transports."""
@@ -121,12 +125,28 @@ class ServerManager:
             return "http"
         return "stdio"
 
-    def _resolve_stdio_session_mode(self, config: McpServerConfig) -> str:
+    def resolve_stdio_lifecycle(self, config: McpServerConfig) -> tuple[str, float | None]:
+        """Map product ``lifecycle`` / legacy fields → (session_mode, idle_timeout).
+
+        ``idle_timeout`` of ``None`` means StdioTransport applies its built-in
+        default for that session_mode. Explicit ``0`` disables idle shutdown.
+        """
+        if config.lifecycle == "lazy":
+            idle = (
+                _DEFAULT_LAZY_IDLE_SEC
+                if config.idle_timeout_sec is None
+                else float(config.idle_timeout_sec)
+            )
+            return "persistent", idle
+        if config.lifecycle in ("keep-alive", "lazy-keep-alive"):
+            idle = 0.0 if config.idle_timeout_sec is None else float(config.idle_timeout_sec)
+            return "persistent", idle
+        # Unset lifecycle: preserve current LAN deploy defaults.
         if config.session_mode:
-            return config.session_mode
+            return config.session_mode, config.idle_timeout_sec
         if config.name in _DEFAULT_PERSISTENT_STDIO:
-            return "persistent"
-        return "oneshot"
+            return "persistent", config.idle_timeout_sec
+        return "oneshot", config.idle_timeout_sec
 
     def _create_transport(self, config: McpServerConfig) -> BaseTransport:
         t = self._detect_transport_type(config)
@@ -137,8 +157,10 @@ class ServerManager:
             return SseTransport(transport_config)
         if t == "http":
             return HttpTransport(transport_config)
-        if "session_mode" not in transport_config:
-            transport_config["session_mode"] = self._resolve_stdio_session_mode(config)
+        mode, idle = self.resolve_stdio_lifecycle(config)
+        transport_config["session_mode"] = mode
+        if idle is not None:
+            transport_config["idle_timeout_sec"] = idle
         return StdioTransport(transport_config)
 
     def _get_transport(self, server_name: str) -> BaseTransport:

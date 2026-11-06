@@ -30,12 +30,18 @@ class McpServerConfig(BaseModel):
     skip_init: bool = False
     disabled: bool = False
     index: bool = True
-    # oneshot = spawn per request (default); persistent = keep-alive process (browser MCP).
+    # Product lifecycle (pi-mcp-style). Prefer this over low-level session_mode.
+    # lazy = reuse process, idle disconnect; keep-alive / lazy-keep-alive = stay
+    # resident after first use (no idle shutdown). Unset preserves LAN defaults.
+    lifecycle: Literal["lazy", "keep-alive", "lazy-keep-alive"] | None = None
+    # Low-level stdio session: oneshot = spawn per request; persistent = reuse process.
+    # Used when lifecycle is unset (legacy / browser allowlist defaults).
     session_mode: Literal["oneshot", "persistent"] | None = None
     idle_timeout_sec: float | None = None
 
     def to_transport_config(self) -> dict[str, Any]:
-        return self.model_dump(exclude_none=True)
+        # lifecycle is resolved by ServerManager before StdioTransport sees config.
+        return self.model_dump(exclude_none=True, exclude={"lifecycle"})
 
 
 class StrictProfileConfig(BaseModel):

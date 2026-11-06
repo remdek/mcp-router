@@ -70,10 +70,12 @@ unchanged.
 `get_router_status` / `/status`. HTTP/SSE/WebSocket probes use a one-shot
 transport (call-path pool untouched). Stdio probes reuse the pooled transport
 under a per-server lock and skip spawning when a call is already in flight so
-a second subprocess never races the call path (A3). Persistent browser stdio
-(`session_mode=persistent`, allowlist `playwright` / `chrome-devtools`) keeps
-one process across calls; a live process satisfies the probe without a second
-spawn or tearing the session (WOR-874).
+a second subprocess never races the call path (A3). Persistent stdio
+(`lifecycle` `lazy` / `keep-alive` / `lazy-keep-alive`, or legacy
+`session_mode=persistent` / browser allowlist) keeps one process across calls;
+a live process satisfies the probe without a second spawn or tearing the
+session (WOR-874). Idle TTL only applies to `lazy` (and persistent defaults);
+`keep-alive` / `lazy-keep-alive` set idle to 0 — see `registry.md`.
 
 **Failure backoff** (WOR-1539) is the fast agent-visible layer: a failed
 connect/call records a sanitized reason for ~60s. While active,
