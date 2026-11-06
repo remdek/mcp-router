@@ -14,6 +14,15 @@ Instead of loading every downstream tool into the agent context, the client sees
 | `get_router_status` | Index / embeddings / downstream probe snapshot |
 | `feedback` / `review` | Local quality intake (no downstream call) |
 
+## Context budget
+
+**Context is the budget**; **compose before inventing**. Product invariants for what
+may enter the default agent turn (tool surface, search hit fields, call results),
+anti-goals, target directions (schema-on-demand, output guard, failure reason),
+and a PR checklist live in
+[`docs/adr/0001-context-budget-invariants.md`](adr/0001-context-budget-invariants.md)
+(WOR-1536 / WOR-1535).
+
 ## Entry points
 
 | Command | Module | Transport |

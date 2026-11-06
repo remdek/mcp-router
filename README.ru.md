@@ -274,4 +274,5 @@ STRICT_ALLOWLIST='{"servers":["docs","web-search"],"tools":[],"read_only":true}'
 ## Доп. документы
 
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — текущая схема роутера (HTTP, SQLite search, transports)
+- [docs/adr/0001-context-budget-invariants.md](docs/adr/0001-context-budget-invariants.md) — инварианты бюджета контекста + чеклист для PR
 - [docs/context/](docs/context/) — фрагменты дизайна, привязанные к исходникам (`make context-drift`)
