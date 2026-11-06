@@ -274,4 +274,5 @@ Calls outside the allow-list return typed `failure_kind=strict_denied` (same rem
 ## More docs
 
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — current router layout (HTTP, SQLite search, transports)
+- [docs/adr/0001-context-budget-invariants.md](docs/adr/0001-context-budget-invariants.md) — context-budget invariants + PR checklist
 - [docs/context/](docs/context/) — focused design fragments tied to source files (`make context-drift`)
