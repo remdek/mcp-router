@@ -79,8 +79,8 @@ With `REGISTRY_HOT_RELOAD=true` (default), `RegistryHotReloader` polls
 `registry.json` (`REGISTRY_POLL_INTERVAL_SEC`). On mtime/size change the
 adapter reloads the file, calls `ServerManager.apply_registry_update`
 (disconnect removed/changed servers, clear tool cache), refreshes
-`strict_policy` from `strictProfile`, and schedules a background reindex —
-no process restart.
+`strict_policy` from `strictProfile` and `invoke_policy` from `invokePolicy`,
+and schedules a background reindex — no process restart.
 
 Runtime objects live in `AppState` (`app_state.py`), injected into FastAPI
 via `Depends(get_app_state)` and shared by MCP tools.
@@ -88,8 +88,9 @@ via `Depends(get_app_state)` and shared by MCP tools.
 ## Settings
 
 `models/settings.py` / `config.py` hold process config: index DB path,
-embedding mode, reindex flags, registry hot-reload, strict MCP env overrides,
-alias path, shadow ranker. Registry file content is separate from Settings.
+embedding mode, reindex flags, registry hot-reload, strict MCP / invoke-policy
+env overrides, alias path, shadow ranker. Registry file content is separate
+from Settings.
 
 ## Boundaries
 

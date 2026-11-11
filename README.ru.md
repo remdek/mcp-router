@@ -94,6 +94,7 @@ curl "http://localhost:${HOST_PORT:-8000}/health"
 | `STRICT_MCP_ENABLED` | `true` | Монтировать strict-surface на `/mcp/v2` |
 | `STRICT_ALLOWLIST` | — | CSV / JSON / путь — курируемый набор для `/mcp/v2` |
 | `STRICT_READ_ONLY` | `false` | На `/mcp/v2` только инструменты с `annotations.readOnlyHint=true` |
+| `INVOKE_POLICY` | — | JSON / `@path` / `.json` — invoke-time deny/allow/`denyDestructive` (пусто = открытый `/mcp`) |
 | `REINDEX_ON_START` | `true` | Реиндекс при старте |
 | `REINDEX_BACKGROUND` | `true` | Неблокирующий реиндекс |
 | `REGISTRY_HOT_RELOAD` | `true` | Поллинг `registry.json` без рестарта |
@@ -114,6 +115,7 @@ curl "http://localhost:${HOST_PORT:-8000}/health"
 1. Задайте `ROUTER_API_KEY` и требуйте `Authorization: Bearer …` у клиентов.
 2. Задайте `ALLOWED_ORIGINS` явным allowlist через запятую (не оставляйте `*`).
 3. Для недоверенных клиентов предпочитайте `/mcp/v2` с `STRICT_ALLOWLIST`, чтобы был доступен только курируемый набор инструментов.
+4. При необходимости задайте `INVOKE_POLICY` (или registry `invokePolicy`), чтобы `call_server_tool` ограничивался даже на `/mcp` — `search_tools` не выдаёт право на вызов (ADR 0002).
 
 ## Конфиг Cursor
 
@@ -265,6 +267,19 @@ STRICT_ALLOWLIST='{"servers":["docs","web-search"],"tools":[],"read_only":true}'
 ```
 
 Вызовы вне allow-list возвращают typed `failure_kind=strict_denied`. Пустой allow-list на `/mcp/v2` запрещает все `call_server_tool`, пока не настроен.
+
+### Invoke-time policy (опционально)
+
+`search_tools` не выдаёт право на вызов. При `INVOKE_POLICY` / `invokePolicy`
+каждый `call_server_tool` проверяется (deny → `denyDestructive` → allow →
+default). Без конфига `/mcp` остаётся открытым. См.
+`docs/adr/0002-invoke-time-policy.md`.
+
+```bash
+INVOKE_POLICY='{"default":"allow","deny":["playwright:*"],"denyDestructive":true}'
+```
+
+Отказы: `failure_kind=policy_denied`. `get_tool_schema` возвращает `permission`.
 
 ## Troubleshooting
 

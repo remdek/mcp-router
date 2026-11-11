@@ -104,5 +104,6 @@ tool handlers, or result shaping:
 
 - `docs/ARCHITECTURE.md` — live package overview
 - `docs/context/search.md`, `docs/context/proxy-call.md` — shipped pipelines
+- `docs/adr/0002-invoke-time-policy.md` — invoke permission (does not enlarge Layer A)
 - `SKILL.md` — agent-facing thin-surface loop
 - WOR-1535 research comment (pi-mcp-adapter pattern comparison)

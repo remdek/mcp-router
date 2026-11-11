@@ -104,6 +104,7 @@ Import direction is enforced by import-linter (`make lint-imports`). Details: `d
 | Embeddings | `embedding/*` | OpenAI-compatible remote **or** local fastembed |
 | Health | `health_probe.py`, `health_quarantine.py`, `failure_backoff.py` | Probes + quarantine; short agent-visible call failure backoff |
 | Strict | `strict_policy.py`, `DualMcpSurfaceMiddleware` | Allow-list on `/mcp/v2` |
+| Invoke policy | `invoke_policy.py` | Optional deny/allow/`denyDestructive` on `call_server_tool` (ADR 0002) |
 
 ## Hybrid search (runtime)
 
@@ -112,7 +113,7 @@ Import direction is enforced by import-linter (`make lint-imports`). Details: `d
 3. Vector ANN (sqlite-vec, else capped cosine) + FTS5 BM25 on SQLite.
 4. Merge with **RRF** (agent-visible). Optional `SHADOW_RANKER` logs weighted merge only.
 5. Apply health quarantine / failure backoff / strict filter; if both channels empty → keyword fallback on live `tools/list` cache.
-6. Client calls `call_server_tool(server_name, tool_name, arguments)` → `ServerManager` proxies unchanged args.
+6. Client calls `call_server_tool(server_name, tool_name, arguments)` → optional invoke policy + strict gate → `ServerManager` proxies unchanged args.
 7. Large call bodies are truncated by the output guard (ADR Layer C); full JSON spills to `data/call_artifacts/`.
 
 See `docs/context/search.md` and `docs/context/proxy-call.md`.

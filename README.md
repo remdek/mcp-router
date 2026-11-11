@@ -94,6 +94,7 @@ Change the published port with `HOST_PORT` in `.env` (mapping is `${HOST_PORT}:$
 | `STRICT_MCP_ENABLED` | `true` | Mount strict surface at `/mcp/v2` |
 | `STRICT_ALLOWLIST` | — | CSV / JSON / path — curated tools for `/mcp/v2` |
 | `STRICT_READ_ONLY` | `false` | On `/mcp/v2`, only `annotations.readOnlyHint=true` tools |
+| `INVOKE_POLICY` | — | JSON / `@path` / `.json` — invoke-time deny/allow/`denyDestructive` (empty = open `/mcp`) |
 | `REINDEX_ON_START` | `true` | Reindex on startup |
 | `REINDEX_BACKGROUND` | `true` | Non-blocking reindex |
 | `REGISTRY_HOT_RELOAD` | `true` | Poll `registry.json` and reload without restart |
@@ -114,6 +115,7 @@ If you expose mcp-router beyond a trusted network:
 1. Set `ROUTER_API_KEY` and require `Authorization: Bearer …` on clients.
 2. Set `ALLOWED_ORIGINS` to an explicit comma-separated allowlist (do not leave `*`).
 3. Prefer `/mcp/v2` with `STRICT_ALLOWLIST` for untrusted clients so they only reach a curated subset of tools.
+4. Optionally set `INVOKE_POLICY` (or registry `invokePolicy`) so `call_server_tool` is gated even on `/mcp` — discovery via `search_tools` does not grant permission (see ADR 0002).
 
 ## Cursor config
 
@@ -265,6 +267,33 @@ STRICT_ALLOWLIST='{"servers":["docs","web-search"],"tools":[],"read_only":true}'
 ```
 
 Calls outside the allow-list return typed `failure_kind=strict_denied` (same remediation shape as other router errors). Empty allow-list on `/mcp/v2` denies all `call_server_tool` until configured.
+
+### Invoke-time policy (optional)
+
+`search_tools` never grants call permission. When `INVOKE_POLICY` or registry
+`invokePolicy` is set, every `call_server_tool` is checked (deny globs →
+`denyDestructive` → allow → default). Unset keeps `/mcp` open. See
+`docs/adr/0002-invoke-time-policy.md`.
+
+```bash
+INVOKE_POLICY='{"default":"allow","deny":["playwright:*"],"denyDestructive":true}'
+```
+
+```json
+{
+  "invokePolicy": {
+    "default": "deny",
+    "allow": ["hindsight:*", "searxng:*"],
+    "denyDestructive": true
+  },
+  "mcpServers": { }
+}
+```
+
+Globs match `server:tool` (also `server/tool`). Tools without
+`annotations.destructiveHint=true` are not treated as destructive. Denials
+return `failure_kind=policy_denied`. `get_tool_schema` includes a `permission`
+verdict for inspection.
 
 ## Troubleshooting
 

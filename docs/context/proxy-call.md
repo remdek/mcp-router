@@ -8,6 +8,7 @@ sources:
   - src/mcp_router/services/responses.py
   - src/mcp_router/services/output_guard.py
   - src/mcp_router/services/strict_policy.py
+  - src/mcp_router/services/invoke_policy.py
   - src/mcp_router/services/health_probe.py
   - src/mcp_router/services/failure_backoff.py
   - src/mcp_router/services/feedback.py
@@ -24,10 +25,11 @@ related:
 
 # Proxy call
 
-`call_server_tool` in `http_mcp_tools.py` is a thin adapter: strict allow-list
-check → registry presence → **failure backoff** / health quarantine →
-`ServerManager.call_tool` → normalize result → optional **output guard** or
-emit a typed remediation error. It does **not** re-model downstream APIs.
+`call_server_tool` in `http_mcp_tools.py` is a thin adapter: **invoke policy**
+→ strict allow-list (only on `/mcp/v2`) → registry presence → **failure
+backoff** / health quarantine → `ServerManager.call_tool` → normalize result →
+optional **output guard** or emit a typed remediation error. It does **not**
+re-model downstream APIs.
 
 ## Faithful relay
 
@@ -58,11 +60,20 @@ downstream reply cannot inflate the agent context:
 
 See ADR 0001 and `services/output_guard.py`.
 
+## Invoke-time policy (discovery ≠ permission)
+
+Optional `INVOKE_POLICY` / registry `invokePolicy` is checked on every
+`call_server_tool` (order: deny globs → `denyDestructive` → allow → default).
+`search_tools` does **not** filter by this policy. `get_tool_schema` returns a
+`permission` verdict for inspection. Denials → `failure_kind=policy_denied`.
+Unset config keeps `/mcp` open (ADR 0002). Tools without `destructiveHint` are
+not treated as destructive.
+
 ## Strict surface
 
 `/mcp/v2` uses `strict_policy` to allow-list servers/tools (and optional
-read-only). Denials return `failure_kind=strict_denied`. Full `/mcp` is
-unchanged.
+read-only). Denials return `failure_kind=strict_denied`. Invoke policy (when
+active) still applies on both surfaces; both layers must allow the call.
 
 ## Health + failure backoff
 

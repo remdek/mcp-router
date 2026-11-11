@@ -26,6 +26,7 @@ from mcp_router.index.indexer import ToolIndexer
 from mcp_router.index.search import ToolSearch
 from mcp_router.models.tools import IndexStatus
 from mcp_router.reap import start_zombie_reaper, stop_zombie_reaper
+from mcp_router.services.invoke_policy import build_invoke_policy
 from mcp_router.services.registry_hot_reload import RegistryHotReloader
 from mcp_router.services.registry_loader import load_registry
 from mcp_router.services.strict_policy import (
@@ -95,6 +96,13 @@ async def _apply_registry_reload() -> None:
         read_only=state.settings.strict_read_only,
         registry_profile=registry_profile,
     )
+    registry_invoke = None
+    if registry.invoke_policy is not None:
+        registry_invoke = registry.invoke_policy.model_dump(by_alias=True)
+    state.invoke_policy = build_invoke_policy(
+        policy=state.settings.invoke_policy,
+        registry_policy=registry_invoke,
+    )
     logger.info(
         "Registry hot-reload applied (changed=%s, servers=%d)",
         changed or "none",
@@ -135,6 +143,7 @@ async def _router_status_snapshot(app_state: AppState | None = None) -> dict[str
             "strict": "/mcp/v2" if s.settings.strict_mcp_enabled else None,
             "active": get_surface(),
             "strict_policy": s.strict_policy.to_public_dict(),
+            "invoke_policy": s.invoke_policy.to_public_dict(),
         },
         "reconnect_hint": (
             "On ECONNREFUSED or fetch failed: verify container is running, "
@@ -181,10 +190,18 @@ async def app_lifespan(app: FastAPI) -> AsyncIterator[None]:
         read_only=state.settings.strict_read_only,
         registry_profile=registry_profile,
     )
+    registry_invoke = None
+    if registry.invoke_policy is not None:
+        registry_invoke = registry.invoke_policy.model_dump(by_alias=True)
+    state.invoke_policy = build_invoke_policy(
+        policy=state.settings.invoke_policy,
+        registry_policy=registry_invoke,
+    )
     logger.info(
-        "MCP surfaces: /mcp (default); /mcp/v2 strict=%s policy=%s",
+        "MCP surfaces: /mcp (default); /mcp/v2 strict=%s policy=%s invoke=%s",
         state.settings.strict_mcp_enabled,
         state.strict_policy.to_public_dict(),
+        state.invoke_policy.to_public_dict(),
     )
 
     state.store.connect()

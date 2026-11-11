@@ -74,11 +74,12 @@ On failure (or degraded search), read typed fields — do not guess secrets or r
 
 | Field | Meaning |
 |-------|---------|
-| `failure_kind` | e.g. `downstream_unreachable`, `auth_failed`, `index_degraded`, `tool_not_found`, `timeout`, `server_unhealthy`, `strict_denied` |
+| `failure_kind` | e.g. `downstream_unreachable`, `auth_failed`, `index_degraded`, `tool_not_found`, `timeout`, `server_unhealthy`, `strict_denied`, `policy_denied` |
 | `next_action` / `retry_hint` | Concrete next step |
 | `reconnect_hint` | Where to look / what is wrong |
 
 - Quarantined / unhealthy servers: skipped in `search_tools`; `call_server_tool` may return `server_unhealthy`.
+- `policy_denied`: invoke-time policy blocked the call — finding a tool in search does **not** grant permission; check `permission.rule` / operator `INVOKE_POLICY`.
 - Index pending/empty: follow `next_action`; often wait/reindex or check `get_router_status`.
 - Never invent `server_name`/`tool_name` from memory if search disagreed.
 

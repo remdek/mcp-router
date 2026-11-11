@@ -15,6 +15,7 @@ from mcp_router.services.cache_service import CacheService
 from mcp_router.services.failure_backoff import FailureBackoffTracker
 from mcp_router.services.feedback import FeedbackService
 from mcp_router.services.health_probe import DownstreamHealthProber
+from mcp_router.services.invoke_policy import InvokePolicy, build_invoke_policy
 from mcp_router.services.search_telemetry import SearchTelemetry
 from mcp_router.services.server_manager import ServerManager
 from mcp_router.services.strict_policy import StrictPolicy, build_strict_policy
@@ -35,6 +36,7 @@ class AppState:
     health_prober: DownstreamHealthProber
     failure_backoff: FailureBackoffTracker
     strict_policy: StrictPolicy
+    invoke_policy: InvokePolicy
     embedding_client: EmbeddingProvider | None = None
     tool_search: ToolSearch | None = None
     indexer: ToolIndexer | None = None
@@ -71,4 +73,5 @@ def build_app_state(settings: Settings | None = None) -> AppState:
             allowlist=cfg.strict_allowlist,
             read_only=cfg.strict_read_only,
         ),
+        invoke_policy=build_invoke_policy(policy=cfg.invoke_policy),
     )
