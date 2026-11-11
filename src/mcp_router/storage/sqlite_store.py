@@ -170,3 +170,12 @@ class SqliteStore(SqliteSearchMixin, SqliteAuditMixin):
             "SELECT tool_id, server_name, tool_name, description FROM tools"
         ).fetchall()
         return [dict(r) for r in rows]
+
+    @with_lock
+    def list_tools_with_schemas(self) -> list[dict[str, Any]]:
+        """All indexed tools including ``tool_schema`` JSON (for tool-tax / ops)."""
+        assert self._conn
+        rows = self._conn.execute(
+            "SELECT tool_id, server_name, tool_name, description, tool_schema FROM tools"
+        ).fetchall()
+        return [dict(r) for r in rows]

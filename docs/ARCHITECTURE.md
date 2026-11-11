@@ -30,6 +30,7 @@ and a PR checklist live in
 |---------|--------|-----------|
 | `mcp-router serve` | `cli.py` → `http_server:app` | HTTP (FastAPI + Uvicorn) |
 | `mcp-router index-tools` | `cli.py` → `ToolIndexer` | Offline SQLite rebuild |
+| `mcp-router tax` | `cli.py` → `services/tool_tax` | Offline estimate from index; also `GET /admin/tax` |
 
 Clients use Streamable HTTP at `/mcp` (optional strict surface `/mcp/v2`). There is **no** stdio MCP entry for the agent host — URL-only.
 

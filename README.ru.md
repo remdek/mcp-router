@@ -195,7 +195,23 @@ curl "http://localhost:${HOST_PORT:-8000}/health"
 pip install -e .
 mcp-router serve              # HTTP-сервер на :8000
 mcp-router index-tools        # Пересобрать SQLite-индекс
+mcp-router tax                # Оценка token-tax схем из индекса
+mcp-router tax --top 30 --json
+mcp-router tax --exact        # опционально: Anthropic count_tokens (ANTHROPIC_API_KEY)
 ```
+
+### Tool tax (`mcp-router tax` / `GET /admin/tax`)
+
+Companion к [ADR 0001](docs/adr/0001-context-budget-invariants.md) («measure before fattening»). Читает **существующий SQLite-индекс** (не нужно поднимать каждый downstream) и оценивает, сколько токенов определений инструментов стоил бы полный dump каталога на каждый request vs тонкая поверхность роутера (~7 tools).
+
+| Поле | Смысл |
+|------|--------|
+| `catalog_tokens` | Оценка токенов, если бы все схемы из индекса уходили в каждый request |
+| `router_tokens` | Оценка только meta-tools mcp-router |
+| per-server / top tools | Доля `catalog_tokens` по размеру JSON определения |
+| `problems` | Имена свойств, которые отказывает Claude API (не входят в total); серверы registry без tools в индексе |
+
+Локальная эвристика: `tokens ≈ 225 + chars / 2.49` (как ToolLens `toollens tax`). `--exact` — Anthropic `count_tokens` (только defs, без env/args). HTTP: `GET /admin/tax?top=20` → тот же отчёт в JSON.
 
 ## Разработка
 

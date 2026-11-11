@@ -195,7 +195,23 @@ Server-side `config/registry.json`: top-level `mcpServers` maps server names to 
 pip install -e .
 mcp-router serve              # HTTP server on :8000
 mcp-router index-tools        # Rebuild SQLite index
+mcp-router tax                # Estimate tool-definition token tax from the index
+mcp-router tax --top 30 --json
+mcp-router tax --exact        # optional: Anthropic count_tokens (ANTHROPIC_API_KEY)
 ```
+
+### Tool tax (`mcp-router tax` / `GET /admin/tax`)
+
+Companion to [ADR 0001](docs/adr/0001-context-budget-invariants.md) («measure before fattening»). Reads the **existing SQLite index** (no need to start every downstream server) and estimates how many tokens of tool *definitions* a full catalog dump would cost per request vs the thin router surface (~7 tools).
+
+| Field | Meaning |
+|-------|---------|
+| `catalog_tokens` | Estimated tokens if every indexed tool schema were sent on every request |
+| `router_tokens` | Estimated tokens for the mcp-router meta-tools only |
+| per-server / top tools | Catalog total split by definition JSON size |
+| `problems` | Claude-incompatible property names (excluded from totals); registry servers with zero indexed tools |
+
+Default estimate: `tokens ≈ 225 + chars / 2.49` (same local fit as ToolLens `toollens tax`). Numbers are approximate; `--exact` / ops can use Anthropic `count_tokens` (sends defs only — never env or args). HTTP: `GET /admin/tax?top=20` returns the same report as JSON.
 
 ## Development
 
