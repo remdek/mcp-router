@@ -273,6 +273,24 @@ async def admin_reindex(_app_state: AppState = Depends(get_app_state)) -> dict[s
     return {"status": "scheduled"}
 
 
+@fastapi_app.get("/admin/tax")
+async def admin_tax(
+    top: int = 20,
+    app_state: AppState = Depends(get_app_state),
+) -> dict[str, Any]:
+    """Estimate tool-definition token tax from the SQLite index (local heuristic)."""
+    from mcp_router.services.tool_tax import compute_tool_tax
+
+    tools = app_state.store.list_tools_with_schemas()
+    registry_names = [s.name for s in app_state.server_manager.list_servers()]
+    report = compute_tool_tax(
+        tools,
+        top=max(0, min(top, 200)),
+        registry_servers=registry_names,
+    )
+    return report.to_dict()
+
+
 # Outermost ASGI (must wrap FastAPI middleware stack): rewrite /mcp/v2 → /mcp
 # before BearerAuthMiddleware so auth sees the canonical /mcp path (WOR-834).
 app = DualMcpSurfaceMiddleware(fastapi_app, enabled=state.settings.strict_mcp_enabled)

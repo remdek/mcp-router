@@ -50,7 +50,8 @@ path when they are short and actionable — they replace retries and guesswork.
 3. **Measure before fattening.** Any change that adds fields, raises default
    `limit`, embeds full schemas for more hits, or returns unbounded call bodies
    on the default path needs a before/after token (or size) estimate — use
-   existing `review` / `feedback` / search telemetry where possible.
+   `mcp-router tax` / `GET /admin/tax` (WOR-1613) and existing `review` /
+   `feedback` / search telemetry where possible.
 4. **Compose first.** Prefer gating (schema only on strong hits), truncation
    (output guard), and short failure reasons over new exposure modes or host
    classifiers.
