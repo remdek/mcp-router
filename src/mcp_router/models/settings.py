@@ -73,6 +73,10 @@ class Settings(BaseSettings):
     strict_allowlist: str = ""
     strict_read_only: bool = False
 
+    # Invoke-time policy on call_server_tool (WOR-1612). Empty = inactive (open /mcp).
+    # JSON / @path / .json path — deny → denyDestructive → allow → default.
+    invoke_policy: str = ""
+
     @property
     def cors_allow_origins(self) -> list[str]:
         origins = [o.strip() for o in self.allowed_origins.split(",") if o.strip()]

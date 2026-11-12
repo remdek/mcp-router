@@ -203,9 +203,14 @@ def register_mcp_tools(mcp: FastMCP) -> None:
 
     @mcp.tool()
     async def get_tool_schema(server_name: str, tool_name: str) -> str:
-        """Fetch full tool_schema for one indexed tool (schema-on-demand lookup)."""
+        """Fetch full tool_schema for one indexed tool (schema-on-demand lookup).
+
+        Also returns the current invoke-policy ``permission`` verdict (informational);
+        discovery/schema lookup does not grant call permission.
+        """
         from mcp_router import http_server as hs
 
+        state = hs.state
         schema = hs._lookup_tool_schema(server_name, tool_name)
         if schema is None:
             return json.dumps(
@@ -217,6 +222,9 @@ def register_mcp_tools(mcp: FastMCP) -> None:
                 ),
                 ensure_ascii=False,
             )
+        permission = state.invoke_policy.check(
+            server_name, tool_name, tool_schema=schema
+        ).to_public_dict()
         return json.dumps(
             {
                 "ok": True,
@@ -224,6 +232,7 @@ def register_mcp_tools(mcp: FastMCP) -> None:
                 "tool_name": tool_name,
                 "tool_id": f"{server_name}:{tool_name}",
                 "tool_schema": schema,
+                "permission": permission,
             },
             ensure_ascii=False,
             indent=2,
@@ -241,8 +250,23 @@ def register_mcp_tools(mcp: FastMCP) -> None:
         state = hs.state
         args = arguments or {}
         call_id = state.search_telemetry.log_call_audit(server_name, tool_name, ok=None)
+        schema = hs._lookup_tool_schema(server_name, tool_name)
+        verdict = state.invoke_policy.check(server_name, tool_name, tool_schema=schema)
+        if not verdict.allowed:
+            return json.dumps(
+                {
+                    **remediation_error(
+                        "policy_denied",
+                        error=verdict.rule,
+                        server_name=server_name,
+                        tool_name=tool_name,
+                        extra={"permission": verdict.to_public_dict()},
+                    ),
+                    "call_id": call_id,
+                },
+                ensure_ascii=False,
+            )
         if get_surface() == "strict":
-            schema = hs._lookup_tool_schema(server_name, tool_name)
             allowed, reason = state.strict_policy.allows_tool(
                 server_name, tool_name, tool_schema=schema
             )

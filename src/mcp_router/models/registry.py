@@ -54,6 +54,17 @@ class StrictProfileConfig(BaseModel):
     read_only: bool = Field(default=False, alias="readOnly")
 
 
+class InvokePolicyConfig(BaseModel):
+    """Optional invoke-time deny/allow policy (applies on call, not search)."""
+
+    model_config = ConfigDict(extra="forbid", populate_by_name=True)
+
+    default: Literal["allow", "deny"] = "deny"
+    allow: list[str] = Field(default_factory=list)
+    deny: list[str] = Field(default_factory=list)
+    deny_destructive: bool = Field(default=False, alias="denyDestructive")
+
+
 class Registry(BaseModel):
     """Root registry document (graphindex-compatible)."""
 
@@ -62,6 +73,7 @@ class Registry(BaseModel):
     groups: list[GroupConfig] = Field(default_factory=list)
     mcp_servers: dict[str, McpServerConfig] = Field(default_factory=dict, alias="mcpServers")
     strict_profile: StrictProfileConfig | None = Field(default=None, alias="strictProfile")
+    invoke_policy: InvokePolicyConfig | None = Field(default=None, alias="invokePolicy")
 
     @model_validator(mode="before")
     @classmethod

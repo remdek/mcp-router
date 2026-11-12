@@ -14,6 +14,7 @@ FailureKind = Literal[
     "tool_not_found",
     "timeout",
     "strict_denied",
+    "policy_denied",
     "server_unhealthy",
     "failure_backoff",
 ]
@@ -65,6 +66,11 @@ _FAILURE_HINTS: dict[FailureKind, tuple[str, str]] = {
     "strict_denied": (
         "Call blocked by the strict MCP surface (/mcp/v2) allow-list or read-only profile.",
         "Use full /mcp, or add the server/tool to STRICT_ALLOWLIST / registry strictProfile.",
+    ),
+    "policy_denied": (
+        "Call blocked by invoke-time policy (deny / denyDestructive / default deny). "
+        "Finding a tool via search_tools does not grant permission to run it.",
+        "Adjust INVOKE_POLICY / registry invokePolicy (allow globs or default), then retry.",
     ),
     "server_unhealthy": (
         "Downstream server failed the last health probe and is quarantined from the day-path. "
@@ -121,6 +127,7 @@ def failure_to_error_source(kind: FailureKind) -> ErrorSource:
         "tool_not_found",
         "index_degraded",
         "strict_denied",
+        "policy_denied",
         "server_unhealthy",
         "failure_backoff",
     ):
